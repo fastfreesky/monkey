@@ -1,0 +1,14 @@
+#调度的默认配置文件
+monkey:
+#入口类
+  input.class.main:
+    - name: server
+      class: com.ccindex.main.ServerSingle
+    - name: client
+      class: com.ccindex.main.Client
+#尝试次数,默认值    
+  input.class.retry:
+    - name: server
+      retry: 10
+    - name: client
+      retry: 10
