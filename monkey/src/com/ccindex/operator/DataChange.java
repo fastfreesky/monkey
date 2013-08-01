@@ -11,8 +11,8 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
-import com.ccindex.constant.Debug;
 import com.ccindex.listener.MonkeyListener;
+import com.ccindex.warn.MonkeyOut;
 
 /**
  * 
@@ -56,6 +56,10 @@ public class DataChange implements StatCallback, Watcher {
 		// this.zk.getData(this.znode, true, this, null);
 	}
 
+	public String getPath() {
+		return path;
+	}
+
 	// 此次任务监控的路径
 	private String path;
 
@@ -83,7 +87,7 @@ public class DataChange implements StatCallback, Watcher {
 	public void process(WatchedEvent event) {
 		// TODO Auto-generated method stub
 		// 待处理的事件类型,放到主逻辑处理,此处已经判定为数据变化event
-		Debug.debug(getClass(), "process" + event);
+		MonkeyOut.debug(getClass(), "process" + event);
 		String path = event.getPath();
 		// wathcer检测的信号类型
 		if (event.getType() == Event.EventType.None) {
@@ -117,7 +121,7 @@ public class DataChange implements StatCallback, Watcher {
 	public void processResult(int rc, String path, Object ctx, Stat stat) {
 		// TODO Auto-generated method stub
 		// 处理侦查到的数据变化情况
-		Debug.debug(getClass(), path);
+		MonkeyOut.debug(getClass(), path);
 		boolean exists;
 		switch (rc) {
 		case Code.Ok:// 一切正常

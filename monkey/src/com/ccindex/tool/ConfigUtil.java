@@ -3,6 +3,7 @@ package com.ccindex.tool;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,6 +35,31 @@ public class ConfigUtil {
 		InputStream in = new FileInputStream(new File(config));
 		Yaml yaml = new Yaml(new SafeConstructor());
 		this.config = (HashMap<String, Object>) yaml.load(in);
+		try {
+			in.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 
+	 * @Title: ConfigUtil.java
+	 * @Description:
+	 * @param config
+	 *            传入配置的文件名,格式为HashMap解析方式
+	 * @throws FileNotFoundException
+	 */
+	public ConfigUtil(InputStream in) throws FileNotFoundException {
+		Yaml yaml = new Yaml(new SafeConstructor());
+		this.config = (HashMap<String, Object>) yaml.load(in);
+		try {
+			in.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	/**

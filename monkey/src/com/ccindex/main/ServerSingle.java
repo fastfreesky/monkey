@@ -2,13 +2,13 @@ package com.ccindex.main;
 
 import java.io.IOException;
 
-import com.ccindex.constant.Constant;
-import com.ccindex.constant.Debug;
 import com.ccindex.constant.SucceedFlag;
 import com.ccindex.record.RecordToFile;
-import com.ccindex.record.RetryFailedEvent;
 import com.ccindex.tool.ParseArgs;
+import com.ccindex.tool.ParseCmd;
+import com.ccindex.warn.MonkeyOut;
 import com.ccindex.warn.SendMail;
+import com.ccindex.warn.SendMsg;
 import com.ccindex.zookeeper.MonkeyServerSingle;
 
 /**
@@ -20,136 +20,118 @@ import com.ccindex.zookeeper.MonkeyServerSingle;
  * 
  */
 public class ServerSingle implements MonkeyMainI {
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
 
-		if (args.length != 3) {
-			System.out.println("Input Params: [num]" + args.length);
-			System.out
-					.println("Params:\n\t[1]--hostport:IP:Port(Eg:127.0.0.1:2181);\n\t[2]--value(Eg:\"monkey -c\\\"ls -al /home\\\"\");\n\t[3]-retry times\n\t");
-			System.exit(2);
-		}
+	private String ipPort;
+	private String[] cmdValuesList;
+	private String cmdValues;
+	private int retryTimes;
+	private ParseCmd parseCmd;
+	private int timeout;
+	private ParseArgs args;
+	private String msg;
 
-		try {
-			RecordToFile.init("/Application/monkey/state");
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		// 主机及端口, 监控的路径,心跳时间(暂不对外提供)
-		String hostPort = args[0];
-		String value = args[1];
-		int retryTimes = Integer.parseInt(args[2]);
+	@Override
+	public void init(ParseArgs args) {
+		// TODO Auto-generated method stub
+		this.args = args;
+		ipPort = args.getIpPort();
+		retryTimes = args.getRetryTimesDefault();
+		timeout = args.getTimeout();
+		cmdValuesList = args.getServerCmdList();
+		cmdValues = args.getServerCmd();
+		msg = args.getMsg();
+	}
 
-		// 拆解任务,每个线程处理一个任务
-		String[] values = value.split("::");
+	@Override
+	public void run() throws Exception {
+		// TODO Auto-generated method stub
 
-		SendMail.packageTitleAll("Task ", value);
+		parseCmd = new ParseCmd();
 
-		for (String val : values) {
+		SendMsg.setMsg(msg);
+		SendMail.packageTitleAll("Task :", cmdValues);
+		RecordToFile.init(args.getRecordDir());
 
-			Constant.setSucceed(false);
-			Debug.info(ServerSingle.class, "Begin..." + args[0]);
+		for (String val : cmdValuesList) {
+
+			// 任务初始化不成功,直接退出,不用进行任务初始化
+			parseCmd.initInputCmdServer(val);
+			parseCmd.setRetryTimesInline(args.getRetrytimesInline());
+			parseCmd.setTimeoutInline(args.getTimeoutInline());
 
 			SendMail.setTitle(val);
-			SendMail.packageMail(val, "Begin");
+			SendMail.packageMail(SendMail.getTitle(), "Begin");
 
 			// 初始化任务列表
-			RetryFailedEvent.init();
+			SucceedFlag.initServer();
 
-			int i = 0;
-			for (i = 0; i < retryTimes; ++i) {
+			// 重试次数
+			for (int i = 0; i < retryTimes; ++i) {
 				try {
-					new MonkeyServerSingle(hostPort, val.trim()).run();
+					new MonkeyServerSingle(ipPort, parseCmd).run();
+
 				} catch (Exception e) {
 					if (i == retryTimes - 1) {
-						SendMail.packageMail(val, e.toString());
-						Debug.info(ServerSingle.class, "End...");
-						SendMail.packageMail(val, "End");
+						SendMail.packageMail(SendMail.getTitle(), e.toString());
+						SendMail.packageMail(SendMail.getTitle(), "End");
 						break;
 					} else {
-						SendMail.packageMail(val, e.toString());
-						// 重试时候,进行任务重新组装
-						String valT = RetryFailedEvent.packageNewTask(val
-								.trim());
-						if (valT != null) {
-							val = valT;
-						}
-
-						SendMail.packageMail(val, "Retry Times [" + (i + 1)
-								+ "]" + "Retry msg: " + val);
-						try {
-							// 10min
-							Thread.sleep(600000);
-							// Thread.sleep(30000);
-						} catch (InterruptedException ee) {
-							// TODO Auto-generated catch block
-							ee.printStackTrace();
-						}
+						SendMail.packageMail(SendMail.getTitle(), e.toString());
+						retryAgain(i);
 						continue;
 					}
 				}
 
 				// 如果执行成功,则跳出循环
-				if (Constant.isSucceed()) {
+				if (SucceedFlag.isServer()) {
 					break;
 				} else {
 					// 重试时候,进行任务重新组装
-					String valT = RetryFailedEvent.packageNewTask(val.trim());
-					if (valT != null) {
-						val = valT;
-					}
-
-					SendMail.packageMail(val, "Retry Times [" + (i + 1) + "]"
-							+ "Retry msg: " + val);
-					try {
-						// 10min
-						Thread.sleep(600000);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+					retryAgain(i);
 				}
 
-				if (i == retryTimes && !Constant.isSucceed()) {
-					break;
-				}
+			}
 
-				Debug.info(ServerSingle.class, "End...");
-				SendMail.packageMail(val, "End");
+			if (!SucceedFlag.isServer()) {
+				break;
 			}
 
 		}
 
+		SendMsg.setStatus(SucceedFlag.isServer());
+		SendMsg.sendMsg();
+
+		MonkeyOut.info(getClass(), "End...");
+		SendMail.packageMail(SendMail.getTitle(), "End");
+
 		SendMail.sendMail();
 		RecordToFile.close();
-
 	}
 
-	private String ipPort;
-	private String[] cmdValues;
-	private int retryTimes;
+	private void retryAgain(int nowCount) {
+		// 重试时候,进行任务重新组装
+		String valT = parseCmd.packageRetryTask(parseCmd.getKernelCmd());
+		if (valT != null) {
+			try {
+				parseCmd.initInputCmdServer(valT);
 
-	@Override
-	public void init(ParseArgs args) {
-		// TODO Auto-generated method stub
-		ipPort = args.getIpPort();
-		retryTimes = args.getRetryTimesDefault();
-		cmdValues = args.getServerCmdList();
-	}
+				MonkeyOut.info(getClass(), "Retry Times [" + (nowCount + 1)
+						+ "]" + "Retry msg: " + valT);
+				SendMail.packageMail(SendMail.getTitle(), "Retry Times ["
+						+ (nowCount + 1) + "]" + "Retry msg: " + valT);
 
-	@Override
-	public void run() {
-		// TODO Auto-generated method stub
-		for (String val : cmdValues) {
-
-			SucceedFlag.initServer();
-			// 重试次数
-			for (int i = 0; i < retryTimes; ++i) {
-
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
 			}
+		}
+
+		try {
+			// 10min
+			Thread.sleep(timeout);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 
 	}

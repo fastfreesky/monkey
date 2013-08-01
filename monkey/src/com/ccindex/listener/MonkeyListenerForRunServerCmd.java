@@ -7,8 +7,8 @@ import java.util.List;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
-import com.ccindex.constant.Debug;
 import com.ccindex.operator.DataChange;
+import com.ccindex.warn.MonkeyOut;
 import com.ccindex.zookeeper.DialRequestThreads;
 import com.ccindex.zookeeper.Zoo;
 
@@ -54,7 +54,8 @@ public class MonkeyListenerForRunServerCmd implements MonkeyListener<List<String
 
 		// TODO Auto-generated method stub
 		// 数据一定不为空
-		Debug.info(getClass(), "Get children change " + t);
+		
+		MonkeyOut.info(getClass(), "Get children change " + t);
 		// .debug("处理存在的数据....获取到子节点的变化 " + t);
 		// 获取节点中包含的的数据指令
 		for (String cmd : t) {
@@ -62,11 +63,11 @@ public class MonkeyListenerForRunServerCmd implements MonkeyListener<List<String
 			String resultNew = "/result/" + cmd;
 
 			if (runningProcess.containsKey(cmdNew)) {
-				Debug.debug(getClass(), "Already Running Process :" + cmdNew);
+				MonkeyOut.debug(getClass(), "Already Running Process :" + cmdNew);
 				continue;
 			} else {
 				runningProcess.put(cmdNew, cmdNew);
-				Debug.debug(getClass(), "Add Running Process :" + cmdNew);
+				MonkeyOut.debug(getClass(), "Add Running Process :" + cmdNew);
 			}
 
 			Thread thread = new Thread(new DialRequestThreads(cmdNew,

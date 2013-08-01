@@ -12,14 +12,12 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
-import com.ccindex.constant.Constant;
-import com.ccindex.constant.Debug;
+import com.ccindex.constant.SucceedFlag;
 import com.ccindex.operator.DataChange;
 import com.ccindex.record.RecordToFile;
-import com.ccindex.record.RetryFailedEvent;
-import com.ccindex.tool.CmdSet;
+import com.ccindex.tool.ParseCmd;
+import com.ccindex.warn.MonkeyOut;
 import com.ccindex.warn.SendMail;
-import com.ccindex.zookeeper.DialRequestThreads;
 
 /**
  * 
@@ -54,7 +52,9 @@ public class MonkeyListenerForGatherClientResult implements
 
 	public volatile boolean isSucceed = false;
 
-	private static int firstTime = 0;
+	private int firstTime = 0;
+
+	private ParseCmd parseCmd;
 
 	public void init() {
 		hostRuning.clear();
@@ -62,14 +62,6 @@ public class MonkeyListenerForGatherClientResult implements
 		isSucceed = false;
 		firstTime = 0;
 		timer = null;
-	}
-
-	public MonkeyListenerForGatherClientResult(ZooKeeper zk,
-			Watcher watcher, String cmd) {
-		// TODO Auto-generated constructor stub
-		this.zk = zk;
-		this.watcher = watcher;
-		this.cmd = cmd;
 	}
 
 	/**
@@ -83,13 +75,14 @@ public class MonkeyListenerForGatherClientResult implements
 	 * @param result
 	 *            传入结果返回的父目录
 	 */
-	public MonkeyListenerForGatherClientResult(ZooKeeper zk,
-			Watcher watcher, String cmd, String result) {
+	public MonkeyListenerForGatherClientResult(ZooKeeper zk, Watcher watcher,
+			String cmd, String result, ParseCmd parseCmd) {
 		// TODO Auto-generated constructor stub
 		this.zk = zk;
 		this.watcher = watcher;
 		this.cmd = cmd;
 		this.result = result;
+		this.parseCmd = parseCmd;
 	}
 
 	private Timer timer = null;
@@ -101,13 +94,13 @@ public class MonkeyListenerForGatherClientResult implements
 			matchR = hostRuningR.matcher(tt);
 
 			if (matchR.find()) {
-				if (CmdSet.hostNameTask.contains(matchR.group(1))) {
+
+				if (parseCmd.isHostName(matchR.group(1))) {
 					hostRuning.add(matchR.group(1));
 					String value = "Now Running host: [" + hostRuning.size()
-							+ "/" + CmdSet.total + "] " + tt;
+							+ "/" + parseCmd.getTotal() + "] " + tt;
 
 					debugRecord(value);
-
 				}
 			}
 			if (matchE.find()) {
@@ -116,10 +109,10 @@ public class MonkeyListenerForGatherClientResult implements
 					hostRunEnd.add(matchE.group(1));
 
 					String value = "Now Running Ok host: [" + hostRunEnd.size()
-							+ "/" + CmdSet.total + "] " + tt;
+							+ "/" + parseCmd.getTotal() + "] " + tt;
 
 					// 摘取hostName
-					RetryFailedEvent.setHostNameTaskSucceed(matchE.group(1));
+					parseCmd.addHostNameTaskSucceed(matchE.group(1));
 
 					debugRecord(value);
 
@@ -127,38 +120,21 @@ public class MonkeyListenerForGatherClientResult implements
 					hostRunEndError.add(matchE.group(1));
 
 					String value = "Now Running Error host: ["
-							+ hostRunEndError.size() + "/" + CmdSet.total
-							+ "] " + tt;
+							+ hostRunEndError.size() + "/"
+							+ parseCmd.getTotal() + "] " + tt;
 
 					debugRecord(value);
 				}
 
-				String reusltDisp = result + "/" + tt;
-				try {
-					byte[] values = zk.getData(reusltDisp, false, null);
-					if (values != null) {
-						String[] arr = new String(values).split("\n");
-						for (String ar : arr) {
-							String value = "\t\t" + ar;
-							Debug.debug(getClass(), value);
-							System.out.println(value);
-							RecordToFile.record(value);
-						}
-					}
-				} catch (KeeperException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				// 显示返回的信息
+				dispReturnMsg(tt);
 
 			}
 
 		}
 
 		firstTime++;
-		if (CmdSet.timeout > 0 && firstTime == 1) {
+		if (parseCmd.getTimeout() > 0 && firstTime == 1) {
 			timer = new Timer();
 			timer.schedule(new TimerTask() {
 
@@ -166,71 +142,83 @@ public class MonkeyListenerForGatherClientResult implements
 				public void run() {
 					// TODO Auto-generated method stub
 					debugRecord("Time out.....");
-					if (CmdSet.less <= hostRunEnd.size()) {
+					if (parseCmd.getLess() <= hostRunEnd.size()) {
 						debugResult();
-						if (!CmdSet.setCmdPackage(zk, cmd)) {
-							Constant.setSucceed(true);
-							isSucceed = true;
-						} else {
-							init();
-						}
+						SucceedFlag.setServer(true);
 					} else {
 						debugResult();
 						debugRecord("Error..to..run...");
-						isSucceed = true;
 					}
 
+					isSucceed = true;
 				}
 
-			}, CmdSet.timeout * 1000);
+			}, parseCmd.getTimeout() * 1000);
 		}
 		// 成功失败个数相加==总数时候,退出,以失败结束或者全部失败时候
-		if (CmdSet.total == hostRunEndError.size()
-				|| (CmdSet.total <= (hostRunEndError.size() + hostRunEnd.size()) && hostRunEndError
-						.size() != 0)) {
+		if (parseCmd.getTotal() == hostRunEndError.size()
+				|| (parseCmd.getTotal() <= (hostRunEndError.size() + hostRunEnd
+						.size()) && hostRunEndError.size() != 0)) {
 			if (timer != null)
 				timer.cancel();
 			debugResult();
 			debugRecord("Error..to..run...");
-			Constant.setSucceed(true);			
+			SucceedFlag.setServer(true);
 			isSucceed = true;
 			return;
 		}
-		if (CmdSet.total == hostRunEnd.size()) {
+		if (parseCmd.getTotal() <= hostRunEnd.size()) {
 			if (timer != null)
 				timer.cancel();
 			debugResult();
-			if (!CmdSet.setCmdPackage(zk, cmd)) {
-				Constant.setSucceed(true);
-				isSucceed = true;
-			} else {
-				init();
-			}
+			debugRecord("Succeed to run...");
+			SucceedFlag.setServer(true);
+			isSucceed = true;
 		} else {
 			isSucceed = false;
 		}
 
 	}
 
+	private void dispReturnMsg(String tt) {
+		String reusltDisp = result + "/" + tt;
+		try {
+			byte[] values = zk.getData(reusltDisp, false, null);
+			if (values != null) {
+				String[] arr = new String(values).split("\n");
+				for (String ar : arr) {
+					String value = "\t\t" + ar;
+
+					debugRecord(value);
+				}
+			}
+		} catch (KeeperException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	private void debugRecord(String value) {
-		System.out.println(value);
-
 		RecordToFile.record(value);
-
-		Debug.debug(getClass(), value);
+		MonkeyOut.debug(getClass(), value);
+		SendMail.packageMail(SendMail.getTitle(), value);
+		System.out.println(value);
 	}
 
 	private void debugResult() {
 
-		debugRecord("All     tasks: " + CmdSet.total);
-		debugRecord("Less    tasks: " + CmdSet.less);
+		debugRecord("All     tasks: " + parseCmd.getTotal());
+		debugRecord("Less    tasks: " + parseCmd.getLess());
 		debugRecord("Succeed tasks: " + hostRunEnd.size());
 		debugRecord("Failed  tasks: " + hostRunEndError.size());
 
-		SendMail.packageMail(SendMail.getTitle(), "All     tasks: "
-				+ CmdSet.total);
-		SendMail.packageMail(SendMail.getTitle(), "Less    tasks: "
-				+ CmdSet.less);
+		SendMail.packageMail(SendMail.getTitle(),
+				"All     tasks: " + parseCmd.getTotal());
+		SendMail.packageMail(SendMail.getTitle(),
+				"Less    tasks: " + parseCmd.getLess());
 		SendMail.packageMail(SendMail.getTitle(), "Succeed tasks: "
 				+ hostRunEnd.size());
 		SendMail.packageMail(SendMail.getTitle(), "Failed  tasks: "
@@ -258,29 +246,6 @@ public class MonkeyListenerForGatherClientResult implements
 		dialList(t);
 
 		return false;
-	}
-
-	public static void main(String[] args) {
-		String input = "BGP-BJ-9-3m1-[OK]_0000000001";
-		// input = "BGP-BJ-9-3m1-[OK]_0000000002";
-		ArrayList<String> arr = new ArrayList<String>();
-		arr.add("BGP-BJ-9-3m1-[OK]_0000000001");
-		arr.add("BGP-BJ-9-3m1");
-
-		MonkeyListenerForGatherClientResult aa = new MonkeyListenerForGatherClientResult(
-				null, null, null);
-		aa.dialList(arr);
-
-		Matcher match = hostRuningE.matcher(input);
-
-		if (match.find()) {
-			System.out.println("Find...." + match.group(1) + match.group(3));
-		}
-		match = hostRuningR.matcher(input);
-
-		if (match.find()) {
-			System.out.println("Find...." + match.group(1));
-		}
 	}
 
 }

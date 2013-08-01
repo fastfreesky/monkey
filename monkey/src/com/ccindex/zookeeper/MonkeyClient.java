@@ -1,36 +1,18 @@
 package com.ccindex.zookeeper;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.charset.Charset;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
 
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.ZooDefs.Ids;
 
 import com.ccindex.constant.Constant;
-import com.ccindex.constant.Debug;
 import com.ccindex.listener.MonkeyListenerForRunServerCmd;
 import com.ccindex.listener.MonkeyListenerForGetServerCmd;
-import com.ccindex.main.Client;
 import com.ccindex.operator.ChildrenChange;
 import com.ccindex.operator.DataChange;
 import com.ccindex.record.RegisterErrorRecordToServer;
-import com.ccindex.tool.CmdParse;
+import com.ccindex.tool.ParseCmd;
+import com.ccindex.warn.MonkeyOut;
 import com.ccindex.watcher.MonkeyClientWatcher;
 
 /**
@@ -56,6 +38,8 @@ public class MonkeyClient implements Runnable {
 	private String hostPort;
 	// Perl
 	private String perPath;
+	private int retryTimes;
+	private int timeout;
 
 	/**
 	 * 
@@ -69,11 +53,13 @@ public class MonkeyClient implements Runnable {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	public MonkeyClient(String hostPort, String perPath)
-			throws KeeperException, IOException {
+	public MonkeyClient(String hostPort, String perPath, int retryTimes,
+			int timeout) throws KeeperException, IOException {
 
 		this.hostPort = hostPort;
 		this.perPath = perPath;
+		this.retryTimes = retryTimes;
+		this.timeout = timeout;
 
 		// 监听端口保持一份
 		clientWathcer = new MonkeyClientWatcher();
@@ -116,27 +102,28 @@ public class MonkeyClient implements Runnable {
 					e.printStackTrace();
 				}
 			}
-			// 恢复初始化
+			// 程序宕机,恢复初始化
 			clientWathcer.flagEnd = false;
 
-			System.out.println("Child Process killed");
-			Debug.info(MonkeyClient.class, "Child Process killed");
+			MonkeyOut.info(getClass(), "Child Process killed");
 
 			times++;
 
-			if (times > 10000) {
-				Debug.info(Client.class,
-						"End...Crash Down more than 10000 times");
+			if (times > retryTimes) {
+				MonkeyOut.info(getClass(), "End...Crash Down more than "
+						+ retryTimes + "times");
 				break;
 			}
-			Debug.info(Client.class, "Client Start again...[" + times
+			MonkeyOut.info(getClass(), "Client Start again...[" + times
 					+ " ] times");
+
 			RegisterErrorRecordToServer.setError("Client Start again...["
 					+ times + " ] times");
 			// 宕机之后,10分钟后恢复
 			try {
-				Thread.sleep(300000);
-
+				Thread.sleep(timeout);
+				//删除历史任务,重新内部启动
+				clientWathcer.removeChild(getChild);
 				initZookeeper();
 
 			} catch (InterruptedException e) {

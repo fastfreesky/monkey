@@ -15,8 +15,8 @@ import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.data.Stat;
 
-import com.ccindex.constant.Debug;
 import com.ccindex.listener.MonkeyListener;
+import com.ccindex.warn.MonkeyOut;
 
 public class ChildrenChange implements Watcher, ChildrenCallback {
 
@@ -73,12 +73,17 @@ public class ChildrenChange implements Watcher, ChildrenCallback {
 
 	}
 
+	
+	public String getPath() {
+		return path;
+	}
+
 	@Override
 	public void processResult(int rc, String path, Object ctx,
 			List<String> children) {
 		// TODO Auto-generated method stub
 		Collections.sort(children);
-		Debug.debug(getClass(), "processResult:[" + flagFirstTime + "]"
+		MonkeyOut.debug(getClass(), "processResult:[" + flagFirstTime + "]"
 				+ children);
 		// System.out.println("processResult:" + );
 		boolean exists;
@@ -151,7 +156,7 @@ public class ChildrenChange implements Watcher, ChildrenCallback {
 	@Override
 	public void process(WatchedEvent event) {
 		// TODO Auto-generated method stub
-		Debug.debug(getClass(), "Change process:[" + flagFirstTime + "]"
+		MonkeyOut.debug(getClass(), "Change process:[" + flagFirstTime + "]"
 				+ event);
 		String path = event.getPath();
 		// wathcer检测的信号类型

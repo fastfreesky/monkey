@@ -12,7 +12,7 @@ public interface MonkeyMainI {
 	 *            void
 	 * @throws
 	 */
-	public void init(ParseArgs args);
+	public void init(ParseArgs args) throws Exception;
 
-	public void run();
+	public void run() throws Exception;
 }

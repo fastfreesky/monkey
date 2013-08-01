@@ -1,18 +1,17 @@
 package com.ccindex.listener;
 
-import com.ccindex.constant.Debug;
+import com.ccindex.warn.MonkeyOut;
 
-public class MonkeyListenerForGetServerCmd implements
-MonkeyListener<byte[]> {
+public class MonkeyListenerForGetServerCmd implements MonkeyListener<byte[]> {
 
 	public String value;
 	public volatile boolean flagEnd = false;
-	
+
 	@Override
 	public boolean exists(byte[] t) {
 		// TODO Auto-generated method stub
-		Debug.info(getClass(), "get Cmd OK  "+new String(t));
-		
+		MonkeyOut.info(getClass(), "get Cmd OK  " + new String(t));
+
 		setValue(new String(t));
 
 		flagEnd = true;

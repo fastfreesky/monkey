@@ -22,11 +22,14 @@ import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
 
 import com.ccindex.constant.Constant;
-import com.ccindex.constant.Debug;
+
 import com.ccindex.listener.MonkeyListenerForRunServerCmd;
 import com.ccindex.listener.MonkeyListenerForGetServerCmd;
 import com.ccindex.operator.DataChange;
-import com.ccindex.tool.CmdParse;
+import com.ccindex.tool.Hive;
+import com.ccindex.tool.Monkey;
+import com.ccindex.tool.ParseCmd;
+import com.ccindex.warn.MonkeyOut;
 import com.ccindex.watcher.MonkeyClientWatcher;
 
 /**
@@ -40,8 +43,6 @@ public class DialRequestThreads implements StatCallback, Runnable {
 
 	// 判定是否为第一次获取启动设备
 	private int flagFirstTime = 0;
-
-	// private ZooKeeper zk = null;
 
 	// 返回结果存储节点
 	private String resultNode = null;
@@ -106,24 +107,31 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				// System.out.println("触发.....");
 			}
 			listenGetCmd.flagEnd = false;
+			
+			clientWathcer.removeCmdData(getCmdData);
+			
 			String cmd = listenGetCmd.getValue();
 
-			Debug.info(getClass(), "Ready Cmd: " + cmd);
+			MonkeyOut.info(getClass(), "Ready Cmd: " + cmd);
 
-			// //测试结束标志
-			// setCompleteReturn(lastResult, "Test");
-			// return;
-			//
 			if (cmd != null) {
 				// 待执行的命令
-
 				// // 获取将执行的指令,进行翻译
-				ArrayList<String> cmdList = CmdParse.parseCmd(cmd);
-				if (cmdList == null) {
-					// setReturnData("Error cmd " + cmd);
-					Debug.info(getClass(), "Error cmd " + cmd);
+				ParseCmd parseCmd = new ParseCmd();
+				try {
+					parseCmd.initClientCmd(cmd);
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+
+				// 该任务不在该设备运行,忽略
+				if (!parseCmd.isHostName(Constant.getHostname())) {
+					MonkeyOut.info(getClass(), "Error cmd " + cmd);
 					return;
 				}
+
+				ArrayList<String> cmdList = parseCmd.getClientCmdList();
 
 				// 返回执行命令的结果信息
 				String resultMsg = "";
@@ -132,10 +140,17 @@ public class DialRequestThreads implements StatCallback, Runnable {
 						// 结束标志,不在进行返回结果
 						setReturnData("Create return Node\n");
 
-						// String cmdPackage = cm;
-						String cmdPackage = perl + " \""
-								+ cm.replaceAll("\"", "\\\\\"") + "\"";
-						Debug.info(getClass(), "Running job: " + cmdPackage);
+						String cmdPackage = cm;
+						// String cmdPackage = perl + " \""
+						// + cm.replaceAll("\"", "\\\\\"") + "\"";
+						if (Monkey.isMonkeySelfCmd(cmdPackage)) {
+							cmdPackage = Monkey.packageMonkeyCmd(cmdPackage);
+						}
+
+						MonkeyOut
+								.info(getClass(), "Running job: " + cmdPackage);
+
+						Hive.isRedirectOut(cmdPackage);
 
 						Process child = Runtime.getRuntime().exec(
 								new String[] { "/bin/sh", "-c", cmdPackage },
@@ -152,16 +167,21 @@ public class DialRequestThreads implements StatCallback, Runnable {
 							setCompleteReturn(lastResult, resultMsg);
 							MonkeyListenerForRunServerCmd.runningProcess
 									.remove(dateNode);
-							Debug.debug(getClass(), "Task Over : " + dateNode);
+							MonkeyOut.debug(getClass(), "Task Over : "
+									+ dateNode);
 							return;
 						}
 
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
+						lastResult = "ERROR";
+						setCompleteReturn(lastResult, e.toString());
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
+						lastResult = "ERROR";
+						setCompleteReturn(lastResult, e.toString());
 					}
 
 				}
@@ -171,9 +191,10 @@ public class DialRequestThreads implements StatCallback, Runnable {
 
 				} else {
 					setCompleteReturn(lastResult, resultMsg);
-					MonkeyListenerForRunServerCmd.runningProcess
-							.remove(dateNode);
-					Debug.debug(getClass(), "Task Over : " + dateNode);
+					//永远不进行remove,remove之后,造成,如果任务重启,会再次运行的悲剧,目前暂时如此解决
+//					MonkeyListenerForRunServerCmd.runningProcess
+//							.remove(dateNode);
+					MonkeyOut.debug(getClass(), "Task Over : " + dateNode);
 					return;
 				}
 			} else {
@@ -198,7 +219,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				States s = zk.getState();
 				if (!s.isConnected()) {
 					Thread.sleep(3000);
-					Debug.debug(getClass(), "Error connect zk : " + s);
+					MonkeyOut.debug(getClass(), "Error connect zk : " + s);
 					continue;
 				}
 				Stat stat = zk.exists(resultNode, false);
@@ -206,7 +227,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 					break;
 				} else {
 					countKill++;
-					Thread.sleep(3000);
+					Thread.sleep(10000);
 					if (countKill > 100) {
 						return;
 					}
@@ -251,7 +272,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 					this.resultNodeProcess = zk.create(tmpPath,
 							result.getBytes(), Ids.OPEN_ACL_UNSAFE,
 							CreateMode.PERSISTENT);
-					Debug.debug(getClass(), "Create Return Node :"
+					MonkeyOut.debug(getClass(), "Create Return Node :"
 							+ this.resultNodeProcess);
 				} catch (KeeperException e) {
 					// TODO Auto-generated catch block
@@ -268,7 +289,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				}
 				valueOld += result;
 
-				Debug.debug(getClass(), "Set Return Value :" + valueOld);
+				MonkeyOut.debug(getClass(), "Set Return Value :" + valueOld);
 				zk.setData(resultNodeProcess, valueOld.getBytes(), -1);
 			}
 
@@ -283,14 +304,26 @@ public class DialRequestThreads implements StatCallback, Runnable {
 
 	private String DebugResult(Process child) {
 
-		InputStreamReader ir = new InputStreamReader(child.getInputStream());
+		InputStreamReader ir = null;
+
+		// 判断任务是否成功
+
+		if (child.exitValue() == 0) {
+			lastResult = "OK";
+			ir = new InputStreamReader(child.getInputStream());
+
+		} else {
+			lastResult = "ERROR";
+			ir = new InputStreamReader(child.getErrorStream());
+
+		}
+
 		LineNumberReader input = new LineNumberReader(ir);
 		String line = null;
 		String isState = null;
 		StringBuffer buf = new StringBuffer();
 		try {
 			while ((line = input.readLine()) != null) {
-				Debug.info(getClass(), line);
 				isState = line;
 				buf.append(line).append("\n");
 			}
@@ -298,12 +331,8 @@ public class DialRequestThreads implements StatCallback, Runnable {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		// 最后一行,取运行结果标志
-		if (isState != null && isState.contains("[0]")) {
-			lastResult = "OK";
-		} else {
-			lastResult = "ERROR";
-		}
+
+		MonkeyOut.info(getClass(), buf.toString());
 
 		return buf.toString();
 	}
@@ -358,19 +387,6 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-		}
-	}
-
-	public static void main(String[] args) {
-
-		ArrayList<String> cmdList = CmdParse
-				.parseCmd("monkey --only CHN-DG-9-5A3 CHN-DG-9-5A4 CHN-DG-9-5A5 CHN-DG-9-5A6 CHN-DG-9-5A7 CHN-DG-9-5A8 CHN-DG-9-5A9 CHN-DG-9-5AA CHN-DG-9-5AB CHN-DG-9-5AC CHN-DG-9-5AD CHN-DG-9-5AE CHN-DG-9-5AF CHN-DG-9-5AG CHN-DG-9-5AH CHN-DG-9-5AJ CHN-DG-9-5AK CHN-DG-9-5AL CHN-DG-9-5AM CHN-DG-9-5AN CHN-DG-9-5AO CHN-DG-9-5AP CHN-DG-9-5AQ CHN-DG-9-5AR CHN-DG-9-5AS CHN-DG-9-5AT CHN-DG-9-5AU CHN-DG-9-5AV  -c\"rm -rf /Application/etl/state1/\"");
-
-		String line = "[Thread-1]- 2013-03-19 16:12:04,511 - com.ccindex.zookeeper.DialRequestThreads -  - drwxr-xr-x  27 root root  4096 Sep 11  2012 var";
-		if (line.contains("[0]")) {
-			System.out.println("OK");
-		} else {
-			System.out.println("ERROR");
 		}
 	}
 

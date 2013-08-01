@@ -1,4 +1,4 @@
-package com.ccindex.main;
+package com.ccindex.tool;
 
 
 public class ObjectFactory {

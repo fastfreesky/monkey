@@ -4,12 +4,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
-
 import com.ccindex.constant.Constant;
-import com.ccindex.constant.Debug;
-import com.ccindex.record.RegisterErrorRecordToServer;
+import com.ccindex.tool.ParseArgs;
+import com.ccindex.warn.MonkeyOut;
 import com.ccindex.zookeeper.MonkeyClient;
 
 /**
@@ -20,23 +18,14 @@ import com.ccindex.zookeeper.MonkeyClient;
  * @date 2013-3-5 下午5:17:51
  * 
  */
-public class Client {
+public class Client implements MonkeyMainI {
 
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+	private ParseArgs args;
+	private String ipPort;
+	// 执行shell脚本的脚本
+	private String shell;
 
-		Debug.info(Client.class, "Begin...");
-		if (args.length < 2) {
-			System.out
-					.println("Params:\n\t[1]--hostport:IP:Port(Eg:127.0.0.1:2181);\n\t[2]--Perl");
-			System.exit(2);
-		}
-		// 主机及端口, 监控的路径,心跳时间(暂不对外提供)
-		String hostPort = args[0];
-		String perPath = args[1];
-
+	private void setHostName() {
 		InetAddress ia;
 		try {
 			ia = InetAddress.getLocalHost();
@@ -45,20 +34,25 @@ public class Client {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
+	}
 
-		try {
+	@Override
+	public void init(ParseArgs args) throws Exception {
+		// TODO Auto-generated method stub
+		this.args = args;
+		ipPort = args.getIpPort();
+		shell = args.getShell();
 
-			MonkeyClient client = new MonkeyClient(hostPort, perPath);
-			client.run();
+		setHostName();
+	}
 
-		} catch (KeeperException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	@Override
+	public void run() throws KeeperException, IOException {
+		// TODO Auto-generated method stub
+		MonkeyOut.info(getClass(), "Begin...");
+		new MonkeyClient(ipPort, shell, args.getRetryTimesDefault(),
+				args.getTimeout()).run();
+
+		MonkeyOut.info(getClass(), "End...");
 	}
 }
-
-

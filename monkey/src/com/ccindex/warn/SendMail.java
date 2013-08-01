@@ -18,7 +18,6 @@ import org.apache.log4j.Logger;
  * 
  */
 public class SendMail {
-	private static Logger logger = Logger.getLogger(SendMail.class);
 	private static HashMap<String, StringBuffer> sendMailQ = new HashMap<String, StringBuffer>();
 	private static String title;
 	private static ArrayList<String> keyArray = new ArrayList<String>(100);
@@ -92,7 +91,7 @@ public class SendMail {
 
 		}
 
-		logger.error(buf.toString());
+		MonkeyOut.error(SendMail.class, buf.toString());
 	}
 
 	public static void main(String[] args) {

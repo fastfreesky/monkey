@@ -2,6 +2,7 @@ package com.ccindex.watcher;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -14,12 +15,10 @@ import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.ZooDefs.Ids;
 
 import com.ccindex.constant.Constant;
-import com.ccindex.constant.Debug;
-import com.ccindex.main.Client;
 import com.ccindex.operator.ChildrenChange;
 import com.ccindex.operator.DataChange;
 import com.ccindex.record.RegisterErrorRecordToServer;
-import com.ccindex.zookeeper.MonkeyClient;
+import com.ccindex.warn.MonkeyOut;
 
 /**
  * 
@@ -39,14 +38,17 @@ public class MonkeyClientWatcher implements Watcher {
 
 	private ZooKeeper zk = null;
 	// 监测命令的变化
-	private ChildrenChange getChild;
+	// private ChildrenChange getChild;
+	private ArrayList<ChildrenChange> getChild = new ArrayList<ChildrenChange>();
 	// 获取指定的cmd中的值
-	private DataChange getCmdData;
+	// private DataChange getCmdData;
+	// 监听cmd内部值变化,用数组,存储多个执行命令,否则,只执行最后一个命令
+	private ArrayList<DataChange> getCmdData = new ArrayList<DataChange>();
 
 	@Override
 	public void process(WatchedEvent event) {
 		// TODO Auto-generated method stub
-		Debug.debug(getClass(), "Input event " + event);
+		MonkeyOut.debug(getClass(), "Input event " + event);
 
 		// wathcer检测的信号类型,无路径处理
 		if (event.getType() == Event.EventType.None) {
@@ -58,13 +60,13 @@ public class MonkeyClientWatcher implements Watcher {
 				// here - watches are automatically re-registered with
 				// server and any watches triggered while the client was
 				// disconnected will be delivered (in order of course)
-				Debug.info(getClass(), "Connect...Ok");
+				MonkeyOut.info(getClass(), "Connect...Ok");
 				RegisterErrorRecordToServer.setErrorRecord(zk);
 				flagSucceedConnect = true;
 				break;
 			case Disconnected:
 			case Expired:
-				Debug.info(getClass(), "Crashed...");
+				MonkeyOut.info(getClass(), "Crashed...");
 				// It's all over
 				try {
 					zk.close();
@@ -84,12 +86,31 @@ public class MonkeyClientWatcher implements Watcher {
 			registHost();
 
 			// 判断此次变化是否为子节点变化
-			if (getChild != null && getChild.isPath(event.getPath()))
-				getChild.process(event);
+			// if (getChild != null && getChild.isPath(event.getPath())) {
+			// getChild.process(event);
+			// }
+			if (getChild.size() != 0) {
+				for (ChildrenChange data : getChild) {
+					if (data.isPath(event.getPath())) {
+						data.process(event);
+					}
+				}
+			}
 
 			// 判断此次变化是否为数据变化
-			if (getCmdData != null && getCmdData.isPath(event.getPath()))
-				getCmdData.process(event);
+			// if (getCmdData != null && getCmdData.isPath(event.getPath())) {
+			// getCmdData.process(event);
+			// }
+
+			// 判断此次变化是否为数据变化
+			if (getCmdData.size() != 0) {
+				for (DataChange data : getCmdData) {
+					if (data.isPath(event.getPath())) {
+						data.process(event);
+					}
+				}
+			}
+
 		} else {
 
 			// 宕机处理
@@ -107,8 +128,8 @@ public class MonkeyClientWatcher implements Watcher {
 
 			List<String> hostList = zk.getChildren("/hostname", false);
 			if (!hostList.contains(Constant.getHostname())) {
-				Debug.debug(getClass(),
-						"Again register HostName " + Constant.getHostname());
+				MonkeyOut.debug(getClass(), "Again register HostName "
+						+ Constant.getHostname());
 				zk.create(path, day.getBytes(), Ids.OPEN_ACL_UNSAFE,
 						CreateMode.EPHEMERAL);
 			}
@@ -122,7 +143,14 @@ public class MonkeyClientWatcher implements Watcher {
 	}
 
 	public void setGetCmdData(DataChange getCmdData) {
-		this.getCmdData = getCmdData;
+		this.getCmdData.add(getCmdData);
+		// this.getCmdData = getCmdData;
+		MonkeyOut.debug(getClass(), "add cmd data " + getCmdData.getPath());
+	}
+
+	public void removeCmdData(DataChange getCmdData) {
+		this.getCmdData.remove(getCmdData);
+		MonkeyOut.debug(getClass(), "remove " + getCmdData.getPath());		
 	}
 
 	public void setZk(ZooKeeper zk) {
@@ -130,7 +158,13 @@ public class MonkeyClientWatcher implements Watcher {
 	}
 
 	public void setGetChild(ChildrenChange getChild) {
-		this.getChild = getChild;
+		this.getChild.add(getChild);
+		MonkeyOut.debug(getClass(), "add child " + getChild.getPath());
+	}
+
+	public void removeChild(ChildrenChange getChild) {
+		this.getChild.remove(getChild);
+		MonkeyOut.debug(getClass(), "remove " + getChild.getPath());
 	}
 
 }

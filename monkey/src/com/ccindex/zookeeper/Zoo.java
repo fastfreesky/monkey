@@ -5,7 +5,7 @@ import java.io.IOException;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
-import com.ccindex.constant.Debug;
+import com.ccindex.warn.MonkeyOut;
 
 /**
  * 
@@ -26,11 +26,9 @@ public class Zoo {
 
 	public synchronized static void setZookeeper(ZooKeeper zookeeper) {
 		if (zookeeper == null) {
-			System.out.println("Error zookeeper");
-			Debug.debug(Zoo.class, "Error zookeeper");
+			MonkeyOut.debug(Zoo.class, "Error zookeeper");
 		} else {
-			Debug.debug(Zoo.class, "Again new zookeeper");
-			System.out.println("Again new zookeeper");
+			MonkeyOut.debug(Zoo.class, "Again new zookeeper");
 
 			Zoo.zookeeper = zookeeper;
 		}

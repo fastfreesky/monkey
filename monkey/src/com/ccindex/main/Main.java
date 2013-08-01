@@ -18,6 +18,7 @@ import com.ccindex.warn.MonkeyOut;
 public class Main {
 
 	/**
+	 * @throws Exception
 	 * @throws FileNotFoundException
 	 * 
 	 * @Title: main
@@ -26,16 +27,29 @@ public class Main {
 	 *            参数1:启动类型(客户端|服务端)
 	 * @throws
 	 */
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) {
 
 		// 解析传入参数类
-		ParseArgs parseArgs = new ParseArgs(args);
+		ParseArgs parseArgs;
+		try {
+			parseArgs = new ParseArgs(args);
 
-		MonkeyMainI mainIn = (MonkeyMainI) parseArgs.getMainClassDefault();
+			MonkeyMainI mainIn = (MonkeyMainI) parseArgs.getMainClassDefault();
 
-		mainIn.init(parseArgs);
+			mainIn.init(parseArgs);
 
-		MonkeyOut.debug(Main.class, parseArgs.getMainClassDefault());
+			mainIn.run();
 
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(1);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+		System.exit(0);
 	}
 }
