@@ -1,4 +1,4 @@
-package com.ccindex.main;
+package com.ccindex.interfaceI;
 
 import com.ccindex.tool.ParseArgs;
 
@@ -15,4 +15,5 @@ public interface MonkeyMainI {
 	public void init(ParseArgs args) throws Exception;
 
 	public void run() throws Exception;
+	
 }

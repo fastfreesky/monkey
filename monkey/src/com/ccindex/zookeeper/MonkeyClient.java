@@ -5,13 +5,9 @@ import java.io.IOException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 
-import com.ccindex.constant.Constant;
 import com.ccindex.listener.MonkeyListenerForRunServerCmd;
-import com.ccindex.listener.MonkeyListenerForGetServerCmd;
 import com.ccindex.operator.ChildrenChange;
-import com.ccindex.operator.DataChange;
 import com.ccindex.record.RegisterErrorRecordToServer;
-import com.ccindex.tool.ParseCmd;
 import com.ccindex.warn.MonkeyOut;
 import com.ccindex.watcher.MonkeyClientWatcher;
 
@@ -65,27 +61,18 @@ public class MonkeyClient implements Runnable {
 		clientWathcer = new MonkeyClientWatcher();
 		listenGetChild = new MonkeyListenerForRunServerCmd();
 
+		ZookeeperFactory.init(hostPort, 20000, clientWathcer);
+
 		initZookeeper();
 	}
 
 	private void initZookeeper() throws IOException {
-		zk = new ZooKeeper(hostPort, 20000, clientWathcer);
-		clientWathcer.setZk(zk);
-
-		// 未成功连接,等待成功,成功之后,再进行其他操作
-		while (!clientWathcer.flagSucceedConnect) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+		zk = ZookeeperFactory.getZookeeper();
 
 		// 设置新的zk
-		listenGetChild.setZKAndPerlPathAdnWatcher(zk, perPath, clientWathcer);
+		listenGetChild.setZKAndPerlPathAdnWatcher(perPath, clientWathcer);
 
-		getChild = new ChildrenChange(zk, "/cmd", null, listenGetChild, false);
+		getChild = new ChildrenChange(zk, "/cmd", listenGetChild, false);
 		clientWathcer.setGetChild(getChild);
 	}
 
@@ -94,16 +81,10 @@ public class MonkeyClient implements Runnable {
 		// synchronized (this) {
 		int times = 0;
 		while (true) {
-			while (!clientWathcer.flagEnd) {
-				try {
-					Thread.sleep(10000);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			// 程序宕机,恢复初始化
-			clientWathcer.flagEnd = false;
+
+			clientWathcer.waitForEnd();
+
+			ZookeeperFactory.close();
 
 			MonkeyOut.info(getClass(), "Child Process killed");
 
@@ -122,7 +103,7 @@ public class MonkeyClient implements Runnable {
 			// 宕机之后,10分钟后恢复
 			try {
 				Thread.sleep(timeout);
-				//删除历史任务,重新内部启动
+				// 删除历史任务,重新内部启动
 				clientWathcer.removeChild(getChild);
 				initZookeeper();
 

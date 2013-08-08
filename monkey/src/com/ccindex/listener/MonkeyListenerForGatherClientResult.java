@@ -12,7 +12,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
-import com.ccindex.constant.SucceedFlag;
+import com.ccindex.interfaceI.MonkeyListenerI;
 import com.ccindex.operator.DataChange;
 import com.ccindex.record.RecordToFile;
 import com.ccindex.tool.ParseCmd;
@@ -28,15 +28,7 @@ import com.ccindex.warn.SendMail;
  * 
  */
 public class MonkeyListenerForGatherClientResult implements
-		MonkeyListener<List<String>> {
-
-	// 对结果进行比对,确定是否正确结束
-	// 正在运行的机器 BGP-BJ-9-3m1
-	private ArrayList<String> hostRuning = new ArrayList<String>();
-	// 运行结束的机器 BGP-BJ-9-3m1-[OK]_0000000002
-	private ArrayList<String> hostRunEnd = new ArrayList<String>();
-	// 运行结束的机器 错误机器
-	private ArrayList<String> hostRunEndError = new ArrayList<String>();
+		MonkeyListenerI<List<String>> {
 
 	private ZooKeeper zk = null;
 	//
@@ -50,18 +42,33 @@ public class MonkeyListenerForGatherClientResult implements
 	private static Pattern hostRuningE = Pattern
 			.compile("^((\\S+-){3}\\S+)-\\[(\\S+)\\]_\\S+$");
 
-	public volatile boolean isSucceed = false;
+	private volatile boolean isSucceed = false;
 
-	private int firstTime = 0;
+	public boolean isSucceed() {
+		return isSucceed;
+	}
+
+	public void setSucceed(boolean isSucceed) {
+		this.isSucceed = isSucceed;
+	}
+
+	public void waitForEnd() {
+		while (!isSucceed()) {
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
 
 	private ParseCmd parseCmd;
 
 	public void init() {
-		hostRuning.clear();
-		hostRunEnd.clear();
-		isSucceed = false;
-		firstTime = 0;
+		setSucceed(false);
 		timer = null;
+		isTimer = false;
 	}
 
 	/**
@@ -86,6 +93,7 @@ public class MonkeyListenerForGatherClientResult implements
 	}
 
 	private Timer timer = null;
+	private volatile boolean isTimer = false;
 
 	private void dialList(List<String> t) {
 		Matcher matchR = null, matchE = null;
@@ -93,34 +101,39 @@ public class MonkeyListenerForGatherClientResult implements
 			matchE = hostRuningE.matcher(tt);
 			matchR = hostRuningR.matcher(tt);
 
+			// 正在运行的设备
 			if (matchR.find()) {
 
 				if (parseCmd.isHostName(matchR.group(1))) {
-					hostRuning.add(matchR.group(1));
-					String value = "Now Running host: [" + hostRuning.size()
-							+ "/" + parseCmd.getTotal() + "] " + tt;
+
+					parseCmd.addHostNameTaskRunning(matchR.group(1));
+
+					String value = "Now Running host: ["
+							+ parseCmd.getHostNameTaskRunning().size() + "/"
+							+ parseCmd.getTotal() + "] " + tt;
 
 					debugRecord(value);
 				}
 			}
+			// 结束的设备
 			if (matchE.find()) {
 				String state = matchE.group(3);
 				if (state.equals("OK")) {
-					hostRunEnd.add(matchE.group(1));
-
-					String value = "Now Running Ok host: [" + hostRunEnd.size()
-							+ "/" + parseCmd.getTotal() + "] " + tt;
-
 					// 摘取hostName
 					parseCmd.addHostNameTaskSucceed(matchE.group(1));
+
+					String value = "Now Running Ok host: ["
+							+ parseCmd.getHostNameTaskSucceed().size() + "/"
+							+ parseCmd.getTotal() + "] " + tt;
 
 					debugRecord(value);
 
 				} else {
-					hostRunEndError.add(matchE.group(1));
+
+					parseCmd.addHostNameTaskFailed(matchE.group(1));
 
 					String value = "Now Running Error host: ["
-							+ hostRunEndError.size() + "/"
+							+ parseCmd.getHostNameTaskFailed().size() + "/"
 							+ parseCmd.getTotal() + "] " + tt;
 
 					debugRecord(value);
@@ -128,56 +141,68 @@ public class MonkeyListenerForGatherClientResult implements
 
 				// 显示返回的信息
 				dispReturnMsg(tt);
-
 			}
 
 		}
 
-		firstTime++;
-		if (parseCmd.getTimeout() > 0 && firstTime == 1) {
-			timer = new Timer();
-			timer.schedule(new TimerTask() {
-
-				@Override
-				public void run() {
-					// TODO Auto-generated method stub
-					debugRecord("Time out.....");
-					if (parseCmd.getLess() <= hostRunEnd.size()) {
-						debugResult();
-						SucceedFlag.setServer(true);
-					} else {
-						debugResult();
-						debugRecord("Error..to..run...");
-					}
-
-					isSucceed = true;
-				}
-
-			}, parseCmd.getTimeout() * 1000);
+		// 需要定时器
+		if (parseCmd.getTimeout() > 0 && timer == null) {
+			dialTimer();
+		}
+		// 定时器超时
+		if (isTimer) {
+			return;
 		}
 		// 成功失败个数相加==总数时候,退出,以失败结束或者全部失败时候
-		if (parseCmd.getTotal() == hostRunEndError.size()
-				|| (parseCmd.getTotal() <= (hostRunEndError.size() + hostRunEnd
-						.size()) && hostRunEndError.size() != 0)) {
+		int failedSize = parseCmd.getHostNameTaskFailed().size();
+		int endSize = parseCmd.getHostNameTaskSucceed().size();
+
+		if (parseCmd.getTotal() == failedSize
+				|| (parseCmd.getTotal() <= (failedSize + endSize) && failedSize != 0)) {
 			if (timer != null)
 				timer.cancel();
 			debugResult();
 			debugRecord("Error..to..run...");
-			SucceedFlag.setServer(true);
-			isSucceed = true;
+			parseCmd.setSucceed(true);
+			setSucceed(true);
 			return;
-		}
-		if (parseCmd.getTotal() <= hostRunEnd.size()) {
+		} else if (parseCmd.getTotal() <= endSize) {
 			if (timer != null)
 				timer.cancel();
 			debugResult();
 			debugRecord("Succeed to run...");
-			SucceedFlag.setServer(true);
-			isSucceed = true;
-		} else {
-			isSucceed = false;
+			parseCmd.setSucceed(true);
+			setSucceed(true);
 		}
 
+	}
+
+	private void dialTimer() {
+		timer = new Timer();
+		timer.schedule(new TimerTask() {
+
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub
+				isTimer = true;
+				debugRecord("Time out.....");
+				// 满足最少成功数,算成功
+				int endSize = parseCmd.getHostNameTaskSucceed().size();
+				if (parseCmd.getLess() <= endSize) {
+					debugResult();
+					parseCmd.setSucceed(true);
+				} else {
+					debugResult();
+					debugRecord("Error..to..run...");
+					parseCmd.setSucceed(false);
+				}
+
+				// 设置标志位退出
+				setSucceed(true);
+
+			}
+
+		}, parseCmd.getTimeout() * 1000);
 	}
 
 	private void dispReturnMsg(String tt) {
@@ -212,17 +237,18 @@ public class MonkeyListenerForGatherClientResult implements
 
 		debugRecord("All     tasks: " + parseCmd.getTotal());
 		debugRecord("Less    tasks: " + parseCmd.getLess());
-		debugRecord("Succeed tasks: " + hostRunEnd.size());
-		debugRecord("Failed  tasks: " + hostRunEndError.size());
+		debugRecord("Succeed tasks: "
+				+ parseCmd.getHostNameTaskSucceed().size());
+		debugRecord("Failed  tasks: " + parseCmd.getHostNameTaskFailed().size());
 
 		SendMail.packageMail(SendMail.getTitle(),
 				"All     tasks: " + parseCmd.getTotal());
 		SendMail.packageMail(SendMail.getTitle(),
 				"Less    tasks: " + parseCmd.getLess());
 		SendMail.packageMail(SendMail.getTitle(), "Succeed tasks: "
-				+ hostRunEnd.size());
+				+ parseCmd.getHostNameTaskSucceed().size());
 		SendMail.packageMail(SendMail.getTitle(), "Failed  tasks: "
-				+ hostRunEndError.size());
+				+ parseCmd.getHostNameTaskFailed().size());
 	}
 
 	/**
@@ -234,7 +260,7 @@ public class MonkeyListenerForGatherClientResult implements
 	 * @param t传入的数据
 	 *            ,一定和上一次不同
 	 * @return
-	 * @see com.ccindex.listener.MonkeyListener#exists(java.lang.Object)
+	 * @see com.ccindex.interfaceI.MonkeyListenerI#exists(java.lang.Object)
 	 */
 	@Override
 	public boolean exists(List<String> t) {

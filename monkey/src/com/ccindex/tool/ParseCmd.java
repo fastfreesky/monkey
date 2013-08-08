@@ -28,6 +28,8 @@ import com.ccindex.warn.SendMail;
  */
 public class ParseCmd {
 
+	//命令执行是否成功
+	private volatile boolean isSucceed = false;
 	private String inputCmd;
 	private int total;
 	private int less;
@@ -45,6 +47,14 @@ public class ParseCmd {
 		this.timeoutInline = timeoutInline;
 	}
 
+	public boolean isSucceed() {
+		return isSucceed;
+	}
+
+	public void setSucceed(boolean isSucceed) {
+		this.isSucceed = isSucceed;
+	}
+
 	// 核心命令
 	private String kernelCmd;
 	// 待运行的设备字符串
@@ -52,19 +62,47 @@ public class ParseCmd {
 
 	// 记录应当运行的全部机器
 	public List<String> hostNameTaskAll = new ArrayList<String>();
+	// 记录正在运行的全部机器
+	public List<String> hostNameTaskRunning = new ArrayList<String>();
 	// 已经完成的机器列表
 	public List<String> hostNameTaskSucceed = new ArrayList<String>();
+	// 运行失败的机器
+	public List<String> hostNameTaskFailed = new ArrayList<String>();
 	// 需要重新运行的机器列表
 	public List<String> hostNameTaskNeedRetry = new ArrayList<String>();
 
+	public List<String> getHostNameTaskFailed() {
+		return hostNameTaskFailed;
+	}
+
+	public void addHostNameTaskFailed(String hostName) {
+		if (!hostNameTaskFailed.contains(hostName)) {
+			hostNameTaskFailed.add(hostName);
+		}
+	}
+
 	public List<String> getHostNameTaskAll() {
 		return hostNameTaskAll;
+	}
+
+	public List<String> getHostNameTaskRunning() {
+		return hostNameTaskRunning;
+	}
+
+	public void addHostNameTaskRunning(String hostName) {
+		if (!hostNameTaskRunning.contains(hostName)) {
+			hostNameTaskRunning.add(hostName);
+		}
 	}
 
 	public void addHostNameTaskSucceed(String hostName) {
 		if (!hostNameTaskSucceed.contains(hostName)) {
 			hostNameTaskSucceed.add(hostName);
 		}
+	}
+
+	public List<String> getHostNameTaskSucceed() {
+		return hostNameTaskSucceed;
 	}
 
 	public String getKernelCmd() {
@@ -143,8 +181,11 @@ public class ParseCmd {
 		this.hostNameTaskAll.clear();
 		this.hostNameTaskSucceed.clear();
 		this.hostNameTaskNeedRetry.clear();
+		this.hostNameTaskFailed.clear();
+		this.hostNameTaskRunning.clear();
 		this.errorReason = null;
 		this.finalCmd = null;
+		setSucceed(false);
 	}
 
 	public void initInputCmdServer(String inputCmd) throws IOException {

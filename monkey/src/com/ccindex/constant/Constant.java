@@ -16,17 +16,6 @@ public class Constant {
 	// 等待删除的路径
 	private static String deletePath = null;
 
-	// 上次任务是否成功标志
-	private static boolean isSucceed = false;
-
-	public static boolean isSucceed() {
-		return isSucceed;
-	}
-
-	public static void setSucceed(boolean isSucceed) {
-		Constant.isSucceed = isSucceed;
-	}
-
 	public static String getDeletePath() {
 		return deletePath;
 	}

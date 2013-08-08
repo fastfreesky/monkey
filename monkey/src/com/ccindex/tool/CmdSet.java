@@ -23,8 +23,6 @@ import com.ccindex.warn.SendMail;
 
 public class CmdSet {
 
-	public volatile static boolean flagExistSet = false;
-
 	private static final String SET = "set";
 	// 新建cmd时候的默认cmd
 	public static final String CMDNEW = "/cmd/cmd_";
@@ -58,19 +56,6 @@ public class CmdSet {
 		return true;
 	}
 
-	public static boolean parseLine(String line, ZooKeeper zk, String cmd,
-			String result, ArrayList<String> callback) throws KeeperException,
-			InterruptedException {
-		if (line.startsWith(SET)) {
-			return dialSet(line, zk, cmd, result);
-		} else {
-			setFlagExistSet(false);
-			System.out.println("Error Cmd, Please input help");
-		}
-
-		return true;
-	}
-
 	private static synchronized boolean setCmdPackage(ZooKeeper zk, String cmd,
 			String values) {
 
@@ -91,27 +76,22 @@ public class CmdSet {
 			e.printStackTrace();
 		}
 
-		setFlagExistSet(true);
-
 		return true;
 	}
 
-	private static boolean dialSet(String line, ZooKeeper zk, String cmd,
-			String result) throws KeeperException, InterruptedException {
-		Matcher match = cmdModelSet.matcher(line);
+	public static boolean dialSet(ZooKeeper zk, String cmd, String datas)
+			throws KeeperException, InterruptedException {
+		Matcher match = cmdModelSet.matcher(datas);
 		if (match.find()) {
 			String data = match.group(1).trim();
 			// 对设置结果进行判断分析,摘取执行的命令
 			return setCmdPackage(zk, cmd, data);
 
 		} else {
-			setFlagExistSet(false);
+
 			System.out.println("Error set cmd: [eg]-set {data}");
 			return false;
 		}
 	}
 
-	public static synchronized void setFlagExistSet(boolean flagExistSet) {
-		CmdSet.flagExistSet = flagExistSet;
-	}
 }

@@ -1,8 +1,9 @@
 package com.ccindex.listener;
 
+import com.ccindex.interfaceI.MonkeyListenerI;
 import com.ccindex.warn.MonkeyOut;
 
-public class MonkeyListenerForGetServerCmd implements MonkeyListener<byte[]> {
+public class MonkeyListenerForGetServerCmd implements MonkeyListenerI<byte[]> {
 
 	public String value;
 	public volatile boolean flagEnd = false;

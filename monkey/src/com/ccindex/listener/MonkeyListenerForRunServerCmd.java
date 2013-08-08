@@ -7,10 +7,11 @@ import java.util.List;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
+import com.ccindex.interfaceI.MonkeyListenerI;
 import com.ccindex.operator.DataChange;
 import com.ccindex.warn.MonkeyOut;
 import com.ccindex.zookeeper.DialRequestThreads;
-import com.ccindex.zookeeper.Zoo;
+import com.ccindex.zookeeper.ZookeeperFactory;
 
 /**
  * 
@@ -20,22 +21,19 @@ import com.ccindex.zookeeper.Zoo;
  * @date 2013-3-14 下午5:11:59
  * 
  */
-public class MonkeyListenerForRunServerCmd implements MonkeyListener<List<String>>  {
+public class MonkeyListenerForRunServerCmd implements
+		MonkeyListenerI<List<String>> {
 
-	private ZooKeeper zk = null;
-
-	// 运行脚本的指定路径
+		// 运行脚本的指定路径
 	private static String perlPath = null;
 	//
 	private Watcher watcher;
 
-	public void setZKAndPerlPathAdnWatcher(ZooKeeper zk, String perlPath,
+	public void setZKAndPerlPathAdnWatcher(String perlPath,
 			Watcher watcher) {
 		// TODO Auto-generated constructor stub
-		this.zk = zk;
 		this.perlPath = perlPath;
 		this.watcher = watcher;
-		Zoo.setZookeeper(zk);
 	}
 
 	/**
@@ -47,14 +45,14 @@ public class MonkeyListenerForRunServerCmd implements MonkeyListener<List<String
 	 * @param t传入的数据
 	 *            ,一定和上一次不同
 	 * @return
-	 * @see com.ccindex.listener.MonkeyListener#exists(java.lang.Object)
+	 * @see com.ccindex.interfaceI.MonkeyListenerI#exists(java.lang.Object)
 	 */
 	@Override
 	public boolean exists(List<String> t) {
 
 		// TODO Auto-generated method stub
 		// 数据一定不为空
-		
+
 		MonkeyOut.info(getClass(), "Get children change " + t);
 		// .debug("处理存在的数据....获取到子节点的变化 " + t);
 		// 获取节点中包含的的数据指令
@@ -63,7 +61,8 @@ public class MonkeyListenerForRunServerCmd implements MonkeyListener<List<String
 			String resultNew = "/result/" + cmd;
 
 			if (runningProcess.containsKey(cmdNew)) {
-				MonkeyOut.debug(getClass(), "Already Running Process :" + cmdNew);
+				MonkeyOut.debug(getClass(), "Already Running Process :"
+						+ cmdNew);
 				continue;
 			} else {
 				runningProcess.put(cmdNew, cmdNew);

@@ -1,33 +1,25 @@
 package com.ccindex.operator;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.Watcher.Event;
-import org.apache.zookeeper.data.Stat;
 
-import com.ccindex.listener.MonkeyListener;
+import com.ccindex.interfaceI.MonkeyListenerI;
 import com.ccindex.warn.MonkeyOut;
+import com.ccindex.watcher.WatcherImpl;
 
-public class ChildrenChange implements Watcher, ChildrenCallback {
+public class ChildrenChange extends WatcherImpl implements ChildrenCallback {
 
 	// 判定是否为第一次获取启动设备
 	private static int flagFirstTime = 0;
 	private ZooKeeper zk;
 	private String znode;
-	private Watcher watcher;
-	private MonkeyListener<List<String>> listener;
-	public volatile boolean flagEnd = false;
-	private byte[] prevData;
+	private MonkeyListenerI<List<String>> listener;
 
 	private boolean isIgnoreFirstTime = false;
 
@@ -60,12 +52,11 @@ public class ChildrenChange implements Watcher, ChildrenCallback {
 
 	ArrayList<String> childOld = new ArrayList<String>();
 
-	public ChildrenChange(ZooKeeper zk, String znode, Watcher watcher,
-			MonkeyListener<List<String>> listener, boolean ignore) {
+	public ChildrenChange(ZooKeeper zk, String znode,
+			MonkeyListenerI<List<String>> listener, boolean ignore) {
 
 		this.zk = zk;
 		this.znode = znode;
-		this.watcher = watcher;
 		this.listener = listener;
 		setPath(znode);
 		setIgnoreFirstTime(ignore);
@@ -73,7 +64,6 @@ public class ChildrenChange implements Watcher, ChildrenCallback {
 
 	}
 
-	
 	public String getPath() {
 		return path;
 	}
@@ -97,7 +87,6 @@ public class ChildrenChange implements Watcher, ChildrenCallback {
 			break;
 		case Code.SessionExpired:// 服务器意外问题
 		case Code.NoAuth:// 未认证的
-			flagEnd = true;
 			return;
 		default:// 继续检测
 			// Retry errors
@@ -154,37 +143,13 @@ public class ChildrenChange implements Watcher, ChildrenCallback {
 	}
 
 	@Override
-	public void process(WatchedEvent event) {
+	public boolean dialOtherSigProcess(WatchedEvent event) {
 		// TODO Auto-generated method stub
-		MonkeyOut.debug(getClass(), "Change process:[" + flagFirstTime + "]"
-				+ event);
 		String path = event.getPath();
-		// wathcer检测的信号类型
-		if (event.getType() == Event.EventType.None) {
-			// We are are being told that the state of the
-			// connection has changed
-			switch (event.getState()) {
-			case SyncConnected:
-				// In this particular example we don't need to do anything
-				// here - watches are automatically re-registered with
-				// server and any watches triggered while the client was
-				// disconnected will be delivered (in order of course)
-				break;
-			case Expired:
-				// It's all over
-				flagEnd = true;
-				break;
-			}
-		} else {
-			if (path != null && path.equals(znode)) {
-				// Something has changed on the node, let's find out
-				zk.getChildren(znode, true, this, null);
-			}
+		if (path != null && path.equals(znode)) {
+			// Something has changed on the node, let's find out
+			zk.getChildren(znode, true, this, null);
 		}
-
-		if (watcher != null) {
-			watcher.process(event);
-		}
-
+		return true;
 	}
 }

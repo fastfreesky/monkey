@@ -1,11 +1,9 @@
 package com.ccindex.main;
 
 import java.io.FileNotFoundException;
-import java.util.HashMap;
 
-import com.ccindex.tool.ConfigUtil;
+import com.ccindex.interfaceI.MonkeyMainI;
 import com.ccindex.tool.ParseArgs;
-import com.ccindex.warn.MonkeyOut;
 
 /**
  * 

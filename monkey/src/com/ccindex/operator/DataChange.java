@@ -11,8 +11,9 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
-import com.ccindex.listener.MonkeyListener;
+import com.ccindex.interfaceI.MonkeyListenerI;
 import com.ccindex.warn.MonkeyOut;
+import com.ccindex.watcher.WatcherImpl;
 
 /**
  * 
@@ -22,14 +23,13 @@ import com.ccindex.warn.MonkeyOut;
  * @date 2013-3-14 下午2:17:46
  * 
  */
-public class DataChange implements StatCallback, Watcher {
+public class DataChange extends WatcherImpl implements StatCallback {
 	// 判定是否为第一次获取启动设备
 	private static int flagFirstTime = 0;
 	private ZooKeeper zk;
 	private String znode;
 	private Watcher watcher;
-	private MonkeyListener<byte[]> listener;
-	public volatile boolean flagEnd = false;
+	private MonkeyListenerI<byte[]> listener;
 	private byte[] prevData;
 
 	/**
@@ -46,7 +46,7 @@ public class DataChange implements StatCallback, Watcher {
 	 *            监听接口
 	 */
 	public DataChange(ZooKeeper zk, String znode, Watcher watcher,
-			MonkeyListener<byte[]> listener) {
+			MonkeyListenerI<byte[]> listener) {
 		this.zk = zk;
 		this.znode = znode;
 		this.watcher = watcher;
@@ -83,39 +83,6 @@ public class DataChange implements StatCallback, Watcher {
 		return false;
 	}
 
-	@Override
-	public void process(WatchedEvent event) {
-		// TODO Auto-generated method stub
-		// 待处理的事件类型,放到主逻辑处理,此处已经判定为数据变化event
-		MonkeyOut.debug(getClass(), "process" + event);
-		String path = event.getPath();
-		// wathcer检测的信号类型
-		if (event.getType() == Event.EventType.None) {
-			// We are are being told that the state of the
-			// connection has changed
-			switch (event.getState()) {
-			case SyncConnected:
-				// In this particular example we don't need to do anything
-				// here - watches are automatically re-registered with
-				// server and any watches triggered while the client was
-				// disconnected will be delivered (in order of course)
-				break;
-			case Expired:
-				// It's all over
-				flagEnd = true;
-				break;
-			}
-		} else {
-			if (path != null && path.equals(znode)) {
-				// 监听的路径数据发生变化,可能删除,可能被创建,可能新增
-				zk.exists(znode, true, this, null);
-			}
-		}
-		// if (watcher != null) {
-		// watcher.process(event);
-		// }
-	}
-
 	@SuppressWarnings("deprecation")
 	@Override
 	public void processResult(int rc, String path, Object ctx, Stat stat) {
@@ -133,7 +100,6 @@ public class DataChange implements StatCallback, Watcher {
 			break;
 		case Code.SessionExpired:// 服务器意外问题
 		case Code.NoAuth:// 未认证的
-			flagEnd = true;
 			return;
 		default:// 继续检测
 			// Retry errors
@@ -161,6 +127,17 @@ public class DataChange implements StatCallback, Watcher {
 			listener.exists(b);
 			prevData = b;
 		}
+	}
+
+	@Override
+	public boolean dialOtherSigProcess(WatchedEvent event) {
+		// TODO Auto-generated method stub
+		String path = event.getPath();
+		if (path != null && path.equals(znode)) {
+			// 监听的路径数据发生变化,可能删除,可能被创建,可能新增
+			zk.exists(znode, true, this, null);
+		}
+		return true;
 	}
 
 }

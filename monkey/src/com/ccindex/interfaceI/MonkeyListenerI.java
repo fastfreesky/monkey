@@ -1,4 +1,4 @@
-package com.ccindex.listener;
+package com.ccindex.interfaceI;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ import java.util.List;
  * @date 2013-3-14 下午2:13:43
  * 
  */
-public interface MonkeyListener<T> {
+public interface MonkeyListenerI<T> {
 	/**
 	 * 
 	 * @Title: exists 

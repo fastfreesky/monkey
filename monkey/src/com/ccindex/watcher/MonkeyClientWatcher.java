@@ -9,9 +9,7 @@ import java.util.List;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.ZooDefs.Ids;
 
 import com.ccindex.constant.Constant;
@@ -19,6 +17,7 @@ import com.ccindex.operator.ChildrenChange;
 import com.ccindex.operator.DataChange;
 import com.ccindex.record.RegisterErrorRecordToServer;
 import com.ccindex.warn.MonkeyOut;
+import com.ccindex.zookeeper.ZookeeperFactory;
 
 /**
  * 
@@ -28,15 +27,8 @@ import com.ccindex.warn.MonkeyOut;
  * @date 2013-4-13 上午9:21:39
  * 
  */
-public class MonkeyClientWatcher implements Watcher {
+public class MonkeyClientWatcher extends WatcherImpl {
 
-	// 程序是否完成
-	public volatile boolean flagEnd = false;
-
-	// zk是否建立成功标志
-	public volatile boolean flagSucceedConnect = false;
-
-	private ZooKeeper zk = null;
 	// 监测命令的变化
 	// private ChildrenChange getChild;
 	private ArrayList<ChildrenChange> getChild = new ArrayList<ChildrenChange>();
@@ -46,49 +38,20 @@ public class MonkeyClientWatcher implements Watcher {
 	private ArrayList<DataChange> getCmdData = new ArrayList<DataChange>();
 
 	@Override
-	public void process(WatchedEvent event) {
+	public void dialConnectOkEvent() {
 		// TODO Auto-generated method stub
-		MonkeyOut.debug(getClass(), "Input event " + event);
+		RegisterErrorRecordToServer.setErrorRecord(ZookeeperFactory
+				.getZookeeper());
+	}
 
-		// wathcer检测的信号类型,无路径处理
-		if (event.getType() == Event.EventType.None) {
-			// We are are being told that the state of the
-			// connection has changed
-			switch (event.getState()) {
-			case SyncConnected:
-				// In this particular example we don't need to do anything
-				// here - watches are automatically re-registered with
-				// server and any watches triggered while the client was
-				// disconnected will be delivered (in order of course)
-				MonkeyOut.info(getClass(), "Connect...Ok");
-				RegisterErrorRecordToServer.setErrorRecord(zk);
-				flagSucceedConnect = true;
-				break;
-			case Disconnected:
-			case Expired:
-				MonkeyOut.info(getClass(), "Crashed...");
-				// It's all over
-				try {
-					zk.close();
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				flagSucceedConnect = false;
-				flagEnd = true;
-				return;
-			}
-		}
-
+	@Override
+	public boolean dialProcess(WatchedEvent event) {
+		// TODO Auto-generated method stub
 		// 成功连接后,再进行处理
-		if (flagSucceedConnect) {
+		if (isConnect()) {
 			// 注册在线设备
 			registHost();
 
-			// 判断此次变化是否为子节点变化
-			// if (getChild != null && getChild.isPath(event.getPath())) {
-			// getChild.process(event);
-			// }
 			if (getChild.size() != 0) {
 				for (ChildrenChange data : getChild) {
 					if (data.isPath(event.getPath())) {
@@ -96,12 +59,6 @@ public class MonkeyClientWatcher implements Watcher {
 					}
 				}
 			}
-
-			// 判断此次变化是否为数据变化
-			// if (getCmdData != null && getCmdData.isPath(event.getPath())) {
-			// getCmdData.process(event);
-			// }
-
 			// 判断此次变化是否为数据变化
 			if (getCmdData.size() != 0) {
 				for (DataChange data : getCmdData) {
@@ -111,12 +68,9 @@ public class MonkeyClientWatcher implements Watcher {
 				}
 			}
 
-		} else {
-
-			// 宕机处理
-			flagEnd = true;
 		}
 
+		return true;
 	}
 
 	private void registHost() {
@@ -126,6 +80,7 @@ public class MonkeyClientWatcher implements Watcher {
 			String day = fm.format(start);
 			String path = "/hostname/" + Constant.getHostname();
 
+			ZooKeeper zk = ZookeeperFactory.getZookeeper();
 			List<String> hostList = zk.getChildren("/hostname", false);
 			if (!hostList.contains(Constant.getHostname())) {
 				MonkeyOut.debug(getClass(), "Again register HostName "
@@ -150,11 +105,7 @@ public class MonkeyClientWatcher implements Watcher {
 
 	public void removeCmdData(DataChange getCmdData) {
 		this.getCmdData.remove(getCmdData);
-		MonkeyOut.debug(getClass(), "remove " + getCmdData.getPath());		
-	}
-
-	public void setZk(ZooKeeper zk) {
-		this.zk = zk;
+		MonkeyOut.debug(getClass(), "remove " + getCmdData.getPath());
 	}
 
 	public void setGetChild(ChildrenChange getChild) {

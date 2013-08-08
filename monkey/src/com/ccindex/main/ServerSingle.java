@@ -2,7 +2,7 @@ package com.ccindex.main;
 
 import java.io.IOException;
 
-import com.ccindex.constant.SucceedFlag;
+import com.ccindex.interfaceI.MonkeyMainI;
 import com.ccindex.record.RecordToFile;
 import com.ccindex.tool.ParseArgs;
 import com.ccindex.tool.ParseCmd;
@@ -62,9 +62,6 @@ public class ServerSingle implements MonkeyMainI {
 			SendMail.setTitle(val);
 			SendMail.packageMail(SendMail.getTitle(), "Begin");
 
-			// 初始化任务列表
-			SucceedFlag.initServer();
-
 			// 重试次数
 			for (int i = 0; i < retryTimes; ++i) {
 				try {
@@ -83,7 +80,7 @@ public class ServerSingle implements MonkeyMainI {
 				}
 
 				// 如果执行成功,则跳出循环
-				if (SucceedFlag.isServer()) {
+				if (parseCmd.isSucceed()) {
 					break;
 				} else {
 					// 重试时候,进行任务重新组装
@@ -91,14 +88,14 @@ public class ServerSingle implements MonkeyMainI {
 				}
 
 			}
-
-			if (!SucceedFlag.isServer()) {
+			// 尝试次数到了,仍然没有成功
+			if (!parseCmd.isSucceed()) {
 				break;
 			}
 
 		}
 
-		SendMsg.setStatus(SucceedFlag.isServer());
+		SendMsg.setStatus(parseCmd.isSucceed());
 		SendMsg.sendMsg();
 
 		MonkeyOut.info(getClass(), "End...");

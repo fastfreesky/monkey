@@ -14,8 +14,9 @@ import org.apache.zookeeper.Watcher.Event;
 
 import com.ccindex.record.RegisterErrorRecordToServer;
 import com.ccindex.warn.MonkeyOut;
+import com.ccindex.watcher.WatcherImpl;
 
-public class MonkeyCheck implements Watcher, Runnable {
+public class MonkeyCheck extends WatcherImpl implements Runnable {
 
 	// 对结果进行比对,确定是否正确结束
 	// 正在运行的机器 BGP-BJ-9-3m1
@@ -30,20 +31,14 @@ public class MonkeyCheck implements Watcher, Runnable {
 			.compile("^((\\S+-){3}\\S+)-\\[(\\S+)\\]_\\S+$");
 
 	private ZooKeeper zk = null;
-	// zk是否建立成功标志
-	public volatile boolean flagSucceedConnect = false;
+
 	private String checkCmd;
 
 	public MonkeyCheck(String hostPort, String checkCmd) throws IOException {
-		zk = new ZooKeeper(hostPort, 20000, this);
-		while (!flagSucceedConnect) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+
+		ZookeeperFactory.init(hostPort, 20000, this);
+
+		zk = ZookeeperFactory.getZookeeper();
 
 		this.checkCmd = checkCmd;
 	}
@@ -53,8 +48,8 @@ public class MonkeyCheck implements Watcher, Runnable {
 		// TODO Auto-generated method stub
 		try {
 			List<String> list = zk.getChildren(checkCmd, false);
-			
-			if (list == null){
+
+			if (list == null) {
 				System.out.println("Not Such Task: " + checkCmd);
 				return;
 			}
@@ -94,48 +89,9 @@ public class MonkeyCheck implements Watcher, Runnable {
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} finally{
-			try {
-				zk.close();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		} finally {
+			ZookeeperFactory.close();
 		}
 
 	}
-
-	@Override
-	public void process(WatchedEvent event) {
-		// TODO Auto-generated method stub
-
-		MonkeyOut.debug(getClass(), "Input event " + event);
-
-		// wathcer检测的信号类型,无路径处理
-		if (event.getType() == Event.EventType.None) {
-			// We are are being told that the state of the
-			// connection has changed
-			switch (event.getState()) {
-			case SyncConnected:
-				MonkeyOut.info(getClass(), "Connect...Ok");
-				RegisterErrorRecordToServer.setErrorRecord(zk);
-				flagSucceedConnect = true;
-				break;
-			case Disconnected:
-			case Expired:
-				MonkeyOut.info(getClass(), "Crashed...");
-				// It's all over
-				try {
-					zk.close();
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				flagSucceedConnect = false;
-				return;
-			}
-		}
-
-	}
-
 }

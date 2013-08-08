@@ -91,8 +91,8 @@ public class DialRequestThreads implements StatCallback, Runnable {
 		this.perl = perl;
 		listenGetCmd = new MonkeyListenerForGetServerCmd();
 
-		getCmdData = new DataChange(Zoo.getZookeeper(), dateNode, watcher,
-				listenGetCmd);
+		getCmdData = new DataChange(ZookeeperFactory.getZookeeper(), dateNode,
+				watcher, listenGetCmd);
 
 		this.clientWathcer = (MonkeyClientWatcher) watcher;
 		clientWathcer.setGetCmdData(getCmdData);
@@ -107,9 +107,9 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				// System.out.println("触发.....");
 			}
 			listenGetCmd.flagEnd = false;
-			
+
 			clientWathcer.removeCmdData(getCmdData);
-			
+
 			String cmd = listenGetCmd.getValue();
 
 			MonkeyOut.info(getClass(), "Ready Cmd: " + cmd);
@@ -152,12 +152,19 @@ public class DialRequestThreads implements StatCallback, Runnable {
 
 						Hive.isRedirectOut(cmdPackage);
 
+						// boolean a = false;
+						// if (a) {
 						Process child = Runtime.getRuntime().exec(
 								new String[] { "/bin/sh", "-c", cmdPackage },
 								null, null);
 						child.waitFor();
 
 						resultMsg += DebugResult(child);
+						// }
+						// 测试命令
+						// lastResult = "ERROR";
+						// Thread.sleep(6000);
+
 						// 将执行结果返回
 						result = Constant.getHostname() + " Running cmd [" + cm
 								+ "] " + lastResult + " \n";
@@ -191,9 +198,9 @@ public class DialRequestThreads implements StatCallback, Runnable {
 
 				} else {
 					setCompleteReturn(lastResult, resultMsg);
-					//永远不进行remove,remove之后,造成,如果任务重启,会再次运行的悲剧,目前暂时如此解决
-//					MonkeyListenerForRunServerCmd.runningProcess
-//							.remove(dateNode);
+					// 永远不进行remove,remove之后,造成,如果任务重启,会再次运行的悲剧,目前暂时如此解决
+					// MonkeyListenerForRunServerCmd.runningProcess
+					// .remove(dateNode);
 					MonkeyOut.debug(getClass(), "Task Over : " + dateNode);
 					return;
 				}
@@ -215,7 +222,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 			ZooKeeper zk = null;
 			// 延时几秒,确定服务器段建立父节点OK,避免去监测,逻辑复杂
 			while (true) {
-				zk = Zoo.getZookeeper();
+				zk = ZookeeperFactory.getZookeeper();
 				States s = zk.getState();
 				if (!s.isConnected()) {
 					Thread.sleep(3000);
@@ -254,7 +261,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 			/**
 			 * 第一次进入,需要创建路径,存储数据
 			 */
-			ZooKeeper zk = Zoo.getZookeeper();
+			ZooKeeper zk = ZookeeperFactory.getZookeeper();
 
 			if (isFirstTime == 1) {
 				try {
@@ -341,7 +348,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 	public void processResult(int rc, String path, Object ctx, Stat stat) {
 		// TODO Auto-generated method stub
 		// System.out.println("processResult:" + );
-		ZooKeeper zk = Zoo.getZookeeper();
+		ZooKeeper zk = ZookeeperFactory.getZookeeper();
 		boolean exists;
 		switch (rc) {
 		case Code.Ok:// 一切正常
