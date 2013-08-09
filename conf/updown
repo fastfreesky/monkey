@@ -1,0 +1,26 @@
+#!/bin/sh
+
+user="$USER"
+destDir=/home/tianyu.yang/nginxDownLoad/down
+destIp=122.143.12.89
+serverIp="http://122.143.12.89:8871/down"
+
+if test $# -ne 2;then
+	echo "Usage: <up|down> <file>"
+	exit
+fi
+
+type=$1
+
+case "$type" in
+	up)
+		echo "scp $2 $user@$destIp:$destDir"
+		scp "$2" $user@$destIp:$destDir
+		;;
+	down)
+		echo "wget $serverIp/$2 -O $2"
+		wget $serverIp/$2 -O $2
+		;;
+	*)
+		echo "Error Cmd Type: $type"
+esac

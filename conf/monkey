@@ -1,0 +1,86 @@
+#!/bin/sh
+
+type=$1
+if test ! -n "$type";then
+	echo "Must Need Start type"
+	exit
+fi
+
+
+baseF=/Application/monkey
+jarF=$baseF/jar/monkey.jar
+confF=$baseF/conf/monkey.yaml
+java="java -jar $jarF --conf=$confF "
+children="$baseF/childId.bak"
+logF="$baseF/state/monkey.log"
+
+server(){
+#	echo -e "Input Params:[$#]\n----------------------------------------\n $@ \n----------------------------------------------"
+	echo -e "Ruuning cmd: \n------------------------------------------\n\n$java \"$@\" \n\n\n ----------------------------------------"
+	$java "$@"
+}
+
+
+status(){
+	killProcess=`ps aux|grep "$jarF"|grep -v  "grep"|grep -v "status"`
+	if test -n "$killProcess"; then
+		echo "monkey client is start ......[ok]"
+		return 0
+	else
+		echo "monkey client is not running......"
+		return 1
+	fi
+}
+
+start(){
+	echo "nohup $java "client" &>/dev/null &"
+	nohup $java "client" &>/dev/null &
+	sleep 5;
+	status
+	if test "$?" -eq "0"; then
+		echo "$!" > $children
+	fi
+}
+
+stop(){
+	status
+	if test "$?" -eq "0"; then
+		if test -e $children; then
+			sleep 10
+			cat $children | xargs kill -9 
+			rm -f $children
+			sleep 3
+			status
+		fi
+	fi
+}
+
+case "$type" in 
+	start)
+		status
+		if test "$?" -eq "1"; then
+			echo "Start monkey client......[5s]"
+			start "$@"
+		else
+			echo "monkey client alreay running......"
+		fi
+        ;;
+	stop)
+		stop
+        ;;
+	status)
+		status
+		;;
+	restart)
+		stop
+		sleep 30
+		start
+        ;;
+	log)
+		tailf $logF
+		;;
+	*)
+	server "$@"
+		;;
+esac
+
