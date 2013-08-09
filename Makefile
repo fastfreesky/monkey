@@ -1,30 +1,29 @@
 all:
 	@echo `date`
-src=/Application/monkey
-#state=/Application/etl/state
-#jar=/Application/etl/jar
-#conf=/Application/etl/conf
-#fresh:
-#	rm -rf Makefile
-clean:
-	rm -rf ${src}
-	rm -f /usr/bin/monkey
-	rm -f /usr/bin/updown
-	@echo "clean ok"
+
+DESTDIR=
+DESTDIRBASE=${DESTDIR}/Application/monkey
+STATEDIR=${DESTDIRBASE}/state
+JARDIR=${DESTDIRBASE}/jar
+CONFDIR=${DESTDIRBASE}/conf
+
+BINDIR=${DESTDIR}/usr/bin
+LINK_MONKEY=${BINDIR}/monkey
+LINK_UPDOWN=${BINDIR}/updown
 
 install:
-	rm -rf ${src}
-	rm -f /usr/bin/monkey
-	rm -f /usr/bin/updown
-	mkdir -p -m 777 ${src}
-	cp ./* -r ${src}
-#	cp ./conf/monkey /usr/bin
-	ln -s ${src}/conf/updown /usr/bin/updown 
-	ln -s ${src}/conf/monkey /usr/bin/monkey
-#	rm -rf ${src}/monkey-1.spec
-	chmod -R 777 ${src}
+	rm -f ${LINK_UPDOWN}
+	rm -f ${LINK_MONKEY}
+	mkdir -p ${DESTDIRBASE}
+	cp ./* -r ${DESTDIRBASE}
+	mkdir -p ${BINDIR}
+	cp ${CONFDIR}/updown ${LINK_UPDOWN}
+	cp ${CONFDIR}/monkey ${LINK_MONKEY}
+#	ln -sf ${CONFDIR}/updown ${LINK_UPDOWN}
+#	ln -sf ${CONFDIR}/monkey ${LINK_MONKEY}
+	chmod -R 777 ${DESTDIRBASE}
+	
 uninstall:
-	rm -rf ${src}
-	rm -f /usr/bin/monkey
-	rm -f /usr/bin/updown
-
+	rm -rf ${DESTDIRBASE}
+	rm -f ${LINK_UPDOWN}
+	rm -f ${LINK_MONKEY}
