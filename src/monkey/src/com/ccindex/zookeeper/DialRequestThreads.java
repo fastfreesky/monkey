@@ -261,10 +261,9 @@ public class DialRequestThreads implements StatCallback, Runnable {
 			/**
 			 * 第一次进入,需要创建路径,存储数据
 			 */
-			ZooKeeper zk = ZookeeperFactory.getZookeeper();
-
 			if (isFirstTime == 1) {
 				try {
+					ZooKeeper zk = ZookeeperFactory.getZookeeper();
 					while (true) {
 						Stat stat;
 
@@ -289,6 +288,8 @@ public class DialRequestThreads implements StatCallback, Runnable {
 					e.printStackTrace();
 				}
 			} else {
+				ZooKeeper zk = ZookeeperFactory.getZookeeper();
+
 				byte[] old = zk.getData(resultNodeProcess, false, null);
 				String valueOld = "";
 				if (old != null) {
@@ -296,7 +297,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				}
 				valueOld += result;
 
-				MonkeyOut.debug(getClass(), "Set Return Value :" + valueOld);
+				MonkeyOut.debug(getClass(), "Set Return Value :" + result);
 				zk.setData(resultNodeProcess, valueOld.getBytes(), -1);
 			}
 
@@ -353,7 +354,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 		switch (rc) {
 		case Code.Ok:// 一切正常
 			flagFirstTime++;
-			System.out.println("processResult DialRequestThreads:["
+			MonkeyOut.debug(getClass(), "processResult DialRequestThreads:["
 					+ flagFirstTime + "]" + path);
 			exists = true;
 			break;
@@ -376,10 +377,10 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				if (zk.getData(resultNode, false, null) != null) {
 
 					valueOld = new String(zk.getData(resultNode, false, null));
-
-					System.out.println("Already exists data " + valueOld);
+					MonkeyOut.debug(getClass(), "Already exists data "
+							+ valueOld);
 				} else {
-					System.out.println("First  data");
+					MonkeyOut.debug(getClass(), "First  data");
 				}
 				valueOld += result;
 
