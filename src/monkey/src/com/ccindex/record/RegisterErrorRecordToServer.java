@@ -11,6 +11,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooDefs.Ids;
 
 import com.ccindex.constant.Constant;
+import com.ccindex.tool.CmdSet;
 
 /**
  * 
@@ -43,14 +44,15 @@ public class RegisterErrorRecordToServer {
 				return;
 			}
 			// 取出日期,判断是否为当天错误日志
-			List<String> listError = zk.getChildren("/error", false);
+			List<String> listError = zk.getChildren(CmdSet.BASEERROR, false);
 
 			String nowTime = fm.format(new Date(System.currentTimeMillis()));
 			String today = fmDate.format(new Date(System.currentTimeMillis()));
 
-			String todayPath = "/error/" + today;
+			String todayPath = CmdSet.packagePath(CmdSet.BASEERROR, today);
 
-			String errorPath = todayPath + "/" + Constant.getHostname();
+			String errorPath = CmdSet.packagePath(todayPath,
+					Constant.getHostname());
 
 			// 当天日期已经存在
 			if (listError != null && listError.contains(today)) {

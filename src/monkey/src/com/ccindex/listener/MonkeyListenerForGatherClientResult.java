@@ -49,18 +49,38 @@ public class MonkeyListenerForGatherClientResult implements
 	}
 
 	public void setSucceed(boolean isSucceed) {
-		this.isSucceed = isSucceed;
+		synchronized (this) {
+			if (isSucceed == true) {
+				MonkeyOut.info(getClass(), "Notify ...");
+				notifyAll();
+			}
+			this.isSucceed = isSucceed;
+		}
+		// this.isSucceed = isSucceed;
 	}
 
 	public void waitForEnd() {
 		while (!isSucceed()) {
 			try {
-				Thread.sleep(2000);
+				MonkeyOut.info(getClass(), "Waiting For End...");
+				synchronized (this) {
+					wait();
+				}
+
+				MonkeyOut.info(getClass(), "End Ok...");
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
+		// while (!isSucceed()) {
+		// try {
+		// Thread.sleep(2000);
+		// } catch (InterruptedException e) {
+		// // TODO Auto-generated catch block
+		// e.printStackTrace();
+		// }
+		// }
 	}
 
 	private ParseCmd parseCmd;
@@ -273,5 +293,4 @@ public class MonkeyListenerForGatherClientResult implements
 
 		return false;
 	}
-
 }

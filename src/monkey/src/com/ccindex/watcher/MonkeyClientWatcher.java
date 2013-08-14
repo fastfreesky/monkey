@@ -16,6 +16,7 @@ import com.ccindex.constant.Constant;
 import com.ccindex.operator.ChildrenChange;
 import com.ccindex.operator.DataChange;
 import com.ccindex.record.RegisterErrorRecordToServer;
+import com.ccindex.tool.CmdSet;
 import com.ccindex.warn.MonkeyOut;
 import com.ccindex.zookeeper.ZookeeperFactory;
 
@@ -78,10 +79,11 @@ public class MonkeyClientWatcher extends WatcherImpl {
 			DateFormat fm = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 			Date start = new Date(System.currentTimeMillis());
 			String day = fm.format(start);
-			String path = "/hostname/" + Constant.getHostname();
+			String path = CmdSet.packagePath(CmdSet.BASEHOSTNAME,
+					Constant.getHostname());
 
 			ZooKeeper zk = ZookeeperFactory.getZookeeper();
-			List<String> hostList = zk.getChildren("/hostname", false);
+			List<String> hostList = zk.getChildren(CmdSet.BASEHOSTNAME, false);
 			if (!hostList.contains(Constant.getHostname())) {
 				MonkeyOut.debug(getClass(), "Again register HostName "
 						+ Constant.getHostname());

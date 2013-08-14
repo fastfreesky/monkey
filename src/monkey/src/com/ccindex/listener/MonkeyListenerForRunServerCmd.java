@@ -9,6 +9,7 @@ import org.apache.zookeeper.ZooKeeper;
 
 import com.ccindex.interfaceI.MonkeyListenerI;
 import com.ccindex.operator.DataChange;
+import com.ccindex.tool.CmdSet;
 import com.ccindex.warn.MonkeyOut;
 import com.ccindex.zookeeper.DialRequestThreads;
 import com.ccindex.zookeeper.ZookeeperFactory;
@@ -24,13 +25,12 @@ import com.ccindex.zookeeper.ZookeeperFactory;
 public class MonkeyListenerForRunServerCmd implements
 		MonkeyListenerI<List<String>> {
 
-		// 运行脚本的指定路径
+	// 运行脚本的指定路径
 	private static String perlPath = null;
 	//
 	private Watcher watcher;
 
-	public void setZKAndPerlPathAdnWatcher(String perlPath,
-			Watcher watcher) {
+	public void setZKAndPerlPathAdnWatcher(String perlPath, Watcher watcher) {
 		// TODO Auto-generated constructor stub
 		this.perlPath = perlPath;
 		this.watcher = watcher;
@@ -57,8 +57,8 @@ public class MonkeyListenerForRunServerCmd implements
 		// .debug("处理存在的数据....获取到子节点的变化 " + t);
 		// 获取节点中包含的的数据指令
 		for (String cmd : t) {
-			String cmdNew = "/cmd/" + cmd;
-			String resultNew = "/result/" + cmd;
+			String cmdNew = CmdSet.packagePath(CmdSet.BASECMD, cmd);
+			String resultNew = CmdSet.packagePath(CmdSet.BASERESULT, cmd);
 
 			if (runningProcess.containsKey(cmdNew)) {
 				MonkeyOut.debug(getClass(), "Already Running Process :"

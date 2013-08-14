@@ -8,6 +8,7 @@ import org.apache.zookeeper.ZooKeeper;
 import com.ccindex.listener.MonkeyListenerForRunServerCmd;
 import com.ccindex.operator.ChildrenChange;
 import com.ccindex.record.RegisterErrorRecordToServer;
+import com.ccindex.tool.CmdSet;
 import com.ccindex.warn.MonkeyOut;
 import com.ccindex.watcher.MonkeyClientWatcher;
 
@@ -72,7 +73,7 @@ public class MonkeyClient implements Runnable {
 		// 设置新的zk
 		listenGetChild.setZKAndPerlPathAdnWatcher(perPath, clientWathcer);
 
-		getChild = new ChildrenChange(zk, "/cmd", listenGetChild, false);
+		getChild = new ChildrenChange(zk, CmdSet.BASECMD, listenGetChild, false);
 		clientWathcer.setGetChild(getChild);
 	}
 
@@ -116,27 +117,5 @@ public class MonkeyClient implements Runnable {
 			}
 		}
 
-	}
-
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-
-		// if (args.length < 4) {
-		// System.err
-		// .println("USAGE: Executor hostPort znode filename program [args ...]");
-		// System.exit(2);
-		// }
-		// String hostPort = args[0];
-		// String znode = args[1];
-		// String filename = args[2];
-		// String exec[] = new String[args.length - 3];
-		// System.arraycopy(args, 3, exec, 0, exec.length);
-		// try {
-		// new Executor(hostPort, znode, filename, exec).run();
-		// } catch (Exception e) {
-		// e.printStackTrace();
-		// }
 	}
 }

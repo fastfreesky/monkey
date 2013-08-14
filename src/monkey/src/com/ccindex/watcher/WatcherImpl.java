@@ -13,49 +13,44 @@ public class WatcherImpl implements Watcher {
 	}
 
 	protected void setConnect(boolean isConnect) {
-		this.isConnect = isConnect;
-	}
-
-	public boolean waitForEnd(long ms) {
-		while (isConnect()) {
-			try {
-				Thread.sleep(ms);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+		synchronized (this) {
+			if (isConnect == false) {
+				MonkeyOut.info(getClass(), "Notify ...");
+				notifyAll();
 			}
+			this.isConnect = isConnect;
 		}
 
-		return true;
+		// this.isConnect = isConnect;
 	}
 
 	public boolean waitForEnd() {
 		while (isConnect()) {
 			try {
-				Thread.sleep(10000);
+				MonkeyOut.info(getClass(), "Waiting For End...");
+				synchronized (this) {
+					wait();
+				}
+				MonkeyOut.info(getClass(), "End Ok...");
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-
-		return true;
-	}
-
-	public boolean waitForConnect(long ms) {
-		while (!isConnect()) {
-			try {
-				Thread.sleep(ms);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+		// while (isConnect()) {
+		// try {
+		// Thread.sleep(10000);
+		// } catch (InterruptedException e) {
+		// // TODO Auto-generated catch block
+		// e.printStackTrace();
+		// }
+		// }
 
 		return true;
 	}
 
 	public boolean waitForConnect() {
+
 		while (!isConnect()) {
 			try {
 				Thread.sleep(1000);

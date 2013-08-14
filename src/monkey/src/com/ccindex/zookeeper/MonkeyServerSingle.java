@@ -67,16 +67,18 @@ public class MonkeyServerSingle implements Runnable {
 						+ cmd.getErrorReason());
 			}
 
-			cmdRun = zk.create(CmdSet.CMDNEW, null, Ids.OPEN_ACL_UNSAFE,
-					CreateMode.EPHEMERAL_SEQUENTIAL);
+			cmdRun = ZookeeperFactory.create(CmdSet.CMDNEW, null,
+					Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 
 			MonkeyOut.info(getClass(), "Create node [" + cmdRun + "] OK");
 
 			// 获取返回结果值,打印到屏幕
-			String new_client = cmdRun.replaceFirst("/cmd", "/result");
+			String new_client = cmdRun.replaceFirst(CmdSet.BASECMD,
+					CmdSet.BASERESULT);
 			// String value="";
-			resultRun = zk.create(new_client, null, Ids.OPEN_ACL_UNSAFE,
-					CreateMode.PERSISTENT);
+
+			resultRun = ZookeeperFactory.create(new_client, null,
+					Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			MonkeyOut.info(getClass(), "Create node [" + resultRun + "] OK");
 
 			Thread.sleep(3000);
@@ -111,9 +113,11 @@ public class MonkeyServerSingle implements Runnable {
 
 				if (result) {
 					listenGetChild.waitForEnd();
+					// listenGetChild.waitForEnd();
 				}
 
-				CmdSet.dialDelete(zk, Constant.getDeletePath());
+				CmdSet.dialDelete(ZookeeperFactory.getZookeeper(),
+						Constant.getDeletePath());
 				System.out.println("Close!");
 				break;
 

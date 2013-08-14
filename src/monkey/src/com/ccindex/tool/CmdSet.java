@@ -23,9 +23,22 @@ import com.ccindex.warn.SendMail;
 
 public class CmdSet {
 
-	private static final String SET = "set";
-	// 新建cmd时候的默认cmd
+	// 新建result时候的默认的根目录
+	public static final String BASERESULT = "/result";
+	// 新建cmd时候的默认cmd根目录
+	public static final String BASECMD = "/cmd";
+	// hostname
+	public static final String BASEHOSTNAME = "/hostname";
+	// error
+	public static final String BASEERROR = "/error";
+
 	public static final String CMDNEW = "/cmd/cmd_";
+
+	private static final String SET = "set";
+
+	public static String packagePath(String father, String child) {
+		return father + "/" + child;
+	}
 
 	// {(monkey\\s+.*)}
 	private static Pattern cmdModelSet = Pattern

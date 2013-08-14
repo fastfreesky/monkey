@@ -26,6 +26,7 @@ import com.ccindex.constant.Constant;
 import com.ccindex.listener.MonkeyListenerForRunServerCmd;
 import com.ccindex.listener.MonkeyListenerForGetServerCmd;
 import com.ccindex.operator.DataChange;
+import com.ccindex.tool.CmdSet;
 import com.ccindex.tool.Hive;
 import com.ccindex.tool.Monkey;
 import com.ccindex.tool.ParseCmd;
@@ -41,9 +42,6 @@ import com.ccindex.watcher.MonkeyClientWatcher;
  */
 public class DialRequestThreads implements StatCallback, Runnable {
 
-	// 判定是否为第一次获取启动设备
-	private int flagFirstTime = 0;
-
 	// 返回结果存储节点
 	private String resultNode = null;
 	// 待执行的perl脚本路径
@@ -55,7 +53,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 	private String result = null;
 
 	// 获取数据的node
-	private String dateNode;
+	private String cmdNode;
 
 	// 获取指定的cmd中的值
 	private DataChange getCmdData;
@@ -81,17 +79,17 @@ public class DialRequestThreads implements StatCallback, Runnable {
 	 * @param job
 	 *            待执行的命令
 	 */
-	public DialRequestThreads(String node, String resultNode, String perl,
+	public DialRequestThreads(String cmdNode, String resultNode, String perl,
 			Watcher watcher) {
 
-		dateNode = node;
+		this.cmdNode = cmdNode;
 		this.resultNode = resultNode;
 
 		// this.zk = zk;
 		this.perl = perl;
 		listenGetCmd = new MonkeyListenerForGetServerCmd();
 
-		getCmdData = new DataChange(ZookeeperFactory.getZookeeper(), dateNode,
+		getCmdData = new DataChange(ZookeeperFactory.getZookeeper(), cmdNode,
 				watcher, listenGetCmd);
 
 		this.clientWathcer = (MonkeyClientWatcher) watcher;
@@ -138,7 +136,7 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				for (String cm : cmdList) {
 					try {
 						// 结束标志,不在进行返回结果
-						setReturnData("Create return Node\n");
+						setRunningHostProcess("Create return Node\n");
 
 						String cmdPackage = cm;
 						// String cmdPackage = perl + " \""
@@ -168,14 +166,14 @@ public class DialRequestThreads implements StatCallback, Runnable {
 						// 将执行结果返回
 						result = Constant.getHostname() + " Running cmd [" + cm
 								+ "] " + lastResult + " \n";
-						setReturnData(result);
+						setRunningHostProcess(result);
 
 						if (lastResult != null && lastResult.equals("ERROR")) {
-							setCompleteReturn(lastResult, resultMsg);
+							setCompleteValue(lastResult, resultMsg);
 							MonkeyListenerForRunServerCmd.runningProcess
-									.remove(dateNode);
+									.remove(cmdNode);
 							MonkeyOut.debug(getClass(), "Task Over : "
-									+ dateNode);
+									+ cmdNode);
 							return;
 						}
 
@@ -183,12 +181,12 @@ public class DialRequestThreads implements StatCallback, Runnable {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 						lastResult = "ERROR";
-						setCompleteReturn(lastResult, e.toString());
+						setCompleteValue(lastResult, e.toString());
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 						lastResult = "ERROR";
-						setCompleteReturn(lastResult, e.toString());
+						setCompleteValue(lastResult, e.toString());
 					}
 
 				}
@@ -197,11 +195,10 @@ public class DialRequestThreads implements StatCallback, Runnable {
 				if (lastResult != null && lastResult.equals("ERROR")) {
 
 				} else {
-					setCompleteReturn(lastResult, resultMsg);
+					setCompleteValue(lastResult, resultMsg);
 					// 永远不进行remove,remove之后,造成,如果任务重启,会再次运行的悲剧,目前暂时如此解决
 					// MonkeyListenerForRunServerCmd.runningProcess
-					// .remove(dateNode);
-					MonkeyOut.debug(getClass(), "Task Over : " + dateNode);
+					// .remove(cmdNode);
 					return;
 				}
 			} else {
@@ -213,100 +210,51 @@ public class DialRequestThreads implements StatCallback, Runnable {
 
 	}
 
-	private void setCompleteReturn(String key, String result) {
+	/**
+	 * 
+	 * @Title: setCompleteValue
+	 * @Description: TODO(这里用一句话描述这个方法的作用)设置最后的完成状态
+	 * @param state
+	 * @param result
+	 *            void
+	 * @throws
+	 */
+	private void setCompleteValue(String state, String result) {
 
-		try {
-			/**
-			 * 第一次进入,需要创建路径,存储数据
-			 */
-			ZooKeeper zk = null;
-			// 延时几秒,确定服务器段建立父节点OK,避免去监测,逻辑复杂
-			while (true) {
-				zk = ZookeeperFactory.getZookeeper();
-				States s = zk.getState();
-				if (!s.isConnected()) {
-					Thread.sleep(3000);
-					MonkeyOut.debug(getClass(), "Error connect zk : " + s);
-					continue;
-				}
-				Stat stat = zk.exists(resultNode, false);
-				if (stat != null) {
-					break;
-				} else {
-					countKill++;
-					Thread.sleep(10000);
-					if (countKill > 100) {
-						return;
-					}
-				}
-			}
+		ZookeeperFactory.exists(resultNode);
+		String tmpPath = CmdSet.packagePath(resultNode, Constant.getHostname()
+				+ "-[" + state + "]_");
+		resultNodeLast = ZookeeperFactory.create(tmpPath, result.getBytes(),
+				Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
 
-			String tmpPath = resultNode + "/" + Constant.getHostname() + "-["
-					+ key + "]_";
-			this.resultNodeLast = zk.create(tmpPath, result.getBytes(),
-					Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
-		} catch (KeeperException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
+		MonkeyOut.debug(getClass(), "Task Over : " + resultNodeLast);
 	}
 
-	private void setReturnData(String result) {
-		try {
-			isFirstTime++;
-			/**
-			 * 第一次进入,需要创建路径,存储数据
-			 */
-			if (isFirstTime == 1) {
-				try {
-					ZooKeeper zk = ZookeeperFactory.getZookeeper();
-					while (true) {
-						Stat stat;
+	/**
+	 * 
+	 * @Title: setRunningHostProcess
+	 * @Description: TODO(这里用一句话描述这个方法的作用)设置正在运行该任务的进度状况
+	 * @param result
+	 *            void
+	 * @throws
+	 */
 
-						stat = zk.exists(resultNode, false);
-						if (stat != null) {
-							break;
-						} else {
-							Thread.sleep(3000);
-						}
-					}
-					String tmpPath = resultNode + "/" + Constant.getHostname();
-					this.resultNodeProcess = zk.create(tmpPath,
-							result.getBytes(), Ids.OPEN_ACL_UNSAFE,
-							CreateMode.PERSISTENT);
-					MonkeyOut.debug(getClass(), "Create Return Node :"
-							+ this.resultNodeProcess);
-				} catch (KeeperException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			} else {
-				ZooKeeper zk = ZookeeperFactory.getZookeeper();
+	private void setRunningHostProcess(String result) {
+		isFirstTime++;
+		/**
+		 * 第一次进入,需要创建路径,存储数据
+		 */
+		if (isFirstTime == 1) {
+			String tmpPath = CmdSet.packagePath(resultNode,
+					Constant.getHostname());
 
-				byte[] old = zk.getData(resultNodeProcess, false, null);
-				String valueOld = "";
-				if (old != null) {
-					valueOld = new String(old);
-				}
-				valueOld += result;
+			resultNodeProcess = ZookeeperFactory.create(tmpPath,
+					result.getBytes(), Ids.OPEN_ACL_UNSAFE,
+					CreateMode.PERSISTENT);
+		} else {
 
-				MonkeyOut.debug(getClass(), "Set Return Value :" + result);
-				zk.setData(resultNodeProcess, valueOld.getBytes(), -1);
-			}
+			SetData(resultNodeProcess, result);
 
-		} catch (KeeperException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 	}
 
@@ -353,9 +301,8 @@ public class DialRequestThreads implements StatCallback, Runnable {
 		boolean exists;
 		switch (rc) {
 		case Code.Ok:// 一切正常
-			flagFirstTime++;
-			MonkeyOut.debug(getClass(), "processResult DialRequestThreads:["
-					+ flagFirstTime + "]" + path);
+			MonkeyOut.debug(getClass(), "processResult DialRequestThreads: "
+					+ path);
 			exists = true;
 			break;
 		case Code.NoNode:// 查询路径不存在
@@ -372,30 +319,22 @@ public class DialRequestThreads implements StatCallback, Runnable {
 		}
 
 		if (exists) {
-			try {
-				String valueOld = "";
-				if (zk.getData(resultNode, false, null) != null) {
-
-					valueOld = new String(zk.getData(resultNode, false, null));
-					MonkeyOut.debug(getClass(), "Already exists data "
-							+ valueOld);
-				} else {
-					MonkeyOut.debug(getClass(), "First  data");
-				}
-				valueOld += result;
-
-				synchronized (resultNode) {
-					zk.setData(resultNode, valueOld.getBytes(), -1);
-				}
-
-			} catch (KeeperException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			SetData(resultNode, result);
 		}
 	}
 
+	private void SetData(String path, String Value) {
+		String valueOld = ZookeeperFactory.getData(path);
+		if (valueOld == null) {
+			MonkeyOut.debug(getClass(), "First  data");
+		} else {
+			MonkeyOut.debug(getClass(), "Already exists data :" + valueOld);
+		}
+
+		valueOld += Value;
+
+		synchronized (path) {
+			ZookeeperFactory.setData(path, valueOld);
+		}
+	}
 }

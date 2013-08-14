@@ -68,6 +68,9 @@ public class ServerSingle implements MonkeyMainI {
 					new MonkeyServerSingle(ipPort, parseCmd).run();
 
 				} catch (Exception e) {
+					
+					e.printStackTrace();
+					
 					if (i == retryTimes - 1) {
 						SendMail.packageMail(SendMail.getTitle(), e.toString());
 						SendMail.packageMail(SendMail.getTitle(), "End");
@@ -77,6 +80,7 @@ public class ServerSingle implements MonkeyMainI {
 						retryAgain(i);
 						continue;
 					}
+					
 				}
 
 				// 如果执行成功,则跳出循环
