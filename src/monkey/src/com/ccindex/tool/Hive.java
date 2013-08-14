@@ -60,9 +60,9 @@ public class Hive {
 	public static String parseHiveArgs(String[] hiveArgs) {
 		// hive语句组装判断
 		if (hiveArgs.length != 4 && hiveArgs.length != 5
-				&& hiveArgs.length != 8) {
+				&& hiveArgs.length != 7) {
 			throw new IndexOutOfBoundsException(
-					"Error Params: \n\t[0]--start type(server|client|hive)\n\t[1]--user\n\t[2]--hostName(;splite)\n\t[3]--hiveSql\n\t[4]--outFile\n\t[5]--destIp\n\t[6]--destPath\n\t[7]--timeout");
+					"Error Params: \n\t[0]--start type(server|client|hive)\n\t[1]--user\n\t[2]--hostName(;splite)\n\t[3]--hiveSql\n\t[4]--outFile\n\t[5]--destIp\n\t[6]--destPath\n\t");
 		}
 		String user = hiveArgs[1];
 		String hostName = hiveArgs[2];

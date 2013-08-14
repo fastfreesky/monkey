@@ -202,7 +202,7 @@ public class ParseArgs {
 		if (startType.equals(startTypeE.server.toString())) {
 			if (argsReal.length < 2) {
 				throw new IndexOutOfBoundsException(
-						"\nError Params: \n\t[0]--start type(server|client|hive)\n\t[1]--cmd\n\t[2]--retryTimes(choice)");
+						"\nError Params: \n\t[0]--start type(server|client|hive)\n\t[1]--cmd\n");
 			}
 			// 另类命令格式:server user hostname cmd
 			if (argsReal.length == 4) {
@@ -212,9 +212,6 @@ public class ParseArgs {
 				setServerCmd(argsReal[1]);
 			}
 
-			if (argsReal.length == 3) {
-				retryTimes = Integer.parseInt(argsReal[2]);
-			}
 		} else if (startType.equals(startTypeE.hive.toString())) {
 			// 解析组装hive指令
 			String finlCm = Hive.parseHiveArgs(argsReal);

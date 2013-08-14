@@ -28,7 +28,7 @@ import com.ccindex.warn.SendMail;
  */
 public class ParseCmd {
 
-	//命令执行是否成功
+	// 命令执行是否成功
 	private volatile boolean isSucceed = false;
 	private String inputCmd;
 	private int total;
@@ -282,6 +282,10 @@ public class ParseCmd {
 				BufferedReader br = new BufferedReader(new FileReader(flie));
 				String line;
 				while ((line = br.readLine()) != null) {
+					line = line.trim();
+					if (line.startsWith("#")) {
+						continue;
+					}
 					if (hostNameTaskAll.contains(line)) {
 						MonkeyOut.info(ParseCmd.class,
 								"Already exists hostname: " + line);
@@ -300,6 +304,7 @@ public class ParseCmd {
 		} else {
 			String[] host = hostName.split(",");
 			for (String line : host) {
+				line = line.trim();
 				if (hostNameTaskAll.contains(line)) {
 					MonkeyOut.info(ParseCmd.class, "Already exists hostname: "
 							+ line);
@@ -365,7 +370,7 @@ public class ParseCmd {
 
 		List<String> hostnameList = null;
 		try {
-			hostnameList = zk.getChildren("/hostname", false);
+			hostnameList = zk.getChildren(CmdSet.BASEHOSTNAME, false);
 		} catch (KeeperException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
