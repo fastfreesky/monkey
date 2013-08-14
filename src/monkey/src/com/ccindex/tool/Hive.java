@@ -87,11 +87,10 @@ public class Hive {
 			buf.append(hiveSql).append(" \\\" > ").append(outFile)
 					.append("\"\"");
 
-		} else if (hiveArgs.length == 8) {
+		} else if (hiveArgs.length == 7) {
 			String outFile = hiveArgs[4].trim();
 			String destIp = hiveArgs[5].trim();
 			String destPath = hiveArgs[6].trim();
-			String timeout = hiveArgs[7].trim();
 
 			// 重定向到文件并上传到同一个地方monkey --only host -c" su - user -c" hive -e
 			// "hiveSql" > outfile
@@ -144,7 +143,7 @@ public class Hive {
 		String[] arg = { "hive", "CCN-BJ-G-3N9,CHN-HZ-2-3N9,CHN-CQ-I-5A1",
 				"tianyu.yang", "add jar hdfs:///user/hive/udf/hive_udf.jar;",
 				"/home/tianyu.yang/cbu_apple/2013.out", "210.14.132.235:8888",
-				"/home/tianyu.yang/itemProject", "3600" };
+				"/home/tianyu.yang/itemProject"};
 
 		// String[] arg = { "hive", "CCN-BJ-G-3N9,CHN-HZ-2-3N9,CHN-CQ-I-5A1",
 		// "tianyu.yang", "add jar hdfs:///user/hive/udf/hive_udf.jar;",
